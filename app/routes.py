@@ -59,4 +59,4 @@ def cosine_sim_bert():
         result = cosine_similarity.item()
     else:
         result = 0
-    return jsonify({'result': 0})
+    return jsonify({'result': result})

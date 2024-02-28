@@ -4,7 +4,7 @@ import torch
 from app import app
 
 # 指定本地模型和分词器的路径
-local_model_path = '/home/libo/bert-base-uncased'
+local_model_path = '/home/libo/bert-base-chinese'
 
 # 从本地加载分词器和模型
 tokenizer = BertTokenizer.from_pretrained(local_model_path)

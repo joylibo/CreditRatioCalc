@@ -4,12 +4,13 @@
 
 ## 部署说明
 基础依赖：
-Python 3.11.8
-Flask 2.2.5
-numpy==1.26.4
-scikit-learn==1.4.1.post1
-scipy==1.12.0
-sniffio==1.3.1
+
+* Python 3.11.8
+* Flask 2.2.5
+* numpy==1.26.4
+* scikit-learn==1.4.1.post1
+* scipy==1.12.0
+* sniffio==1.3.1
 
 ## WSGI HTTP服务器
 gunicorn==21.2.0

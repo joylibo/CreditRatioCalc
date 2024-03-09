@@ -231,7 +231,7 @@ def bulk_similarity():
             sentence_embedding = model_output.last_hidden_state[:, 0, :]
 
             # 计算余弦相似度并归一化
-            cosine_similarity = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=0)
+            cosine_similarity = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=1)
             normalized_cosine_similarity = (cosine_similarity + 1) / 2
 
             # 计算欧氏距离并归一化

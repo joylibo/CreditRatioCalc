@@ -1,4 +1,4 @@
-from flask import request, jsonify
+from flask import request, jsonify, render_template
 from transformers import BertTokenizer, BertModel
 from scipy.spatial.distance import euclidean
 import torch
@@ -13,111 +13,7 @@ model = BertModel.from_pretrained(local_model_path)
 
 @app.route('/')
 def index():
-    return '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>文本相似度计算</title>
-        <script>
-        function calculateSimilarity() {
-            var text1 = document.getElementById("text1").value;
-            var text2 = document.getElementById("text2").value;
-            
-            fetch('/similarity', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({text1: text1, text2: text2}),
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("result").innerHTML = "相似度得分: " + data.result;
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
-        }
-
-        function calculateBulkSimilarity() {
-            var referenceText = document.getElementById("referenceText").value;
-            var testTexts = Array.from(document.querySelectorAll(".testText")).map(element => element.value);
-
-            fetch('/bulk_similarity', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({reference_text: referenceText, texts_to_compare: testTexts}),
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if(data.similarities && data.similarities.length > 0) {
-                    var results = data.similarities;
-                    var resultTable = "<table><tr><th>测试文本</th><th>相似度得分</th></tr>";
-                    results.forEach((result, index) => {
-                        resultTable += `<tr><td>测试文本 ${index + 1}</td><td>${result}</td></tr>`;
-                    });
-                    resultTable += "</table>";
-                    document.getElementById("bulkResult").innerHTML = resultTable;
-                } else {
-                    // 处理没有相似度数据的情况
-                    document.getElementById("bulkResult").innerHTML = "没有计算出相似度。";
-                }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-                document.getElementById("bulkResult").innerHTML = "发生错误，无法计算相似度。";
-            });
-        }
-
-        function addTextField() {
-            var container = document.getElementById("testTextsContainer");
-            var newField = document.createElement("textarea");
-            newField.setAttribute("rows", "2");
-            newField.setAttribute("cols", "50");
-            newField.classList.add("testText");
-            container.appendChild(newField);
-        }
-        </script>
-    </head>
-    <body>
-        <h2>输入两段文本以计算相似度（考虑向量余弦与距离）</h2>
-        <form id="similarityForm">
-            <div>
-                <label for="text1">文本1:</label><br>
-                <textarea id="text1" name="text1" rows="4" cols="50"></textarea>
-            </div>
-            <div>
-                <label for="text2">文本2:</label><br>
-                <textarea id="text2" name="text2" rows="4" cols="50"></textarea>
-            </div>
-            <input type="button" value="计算相似度" onclick="calculateSimilarity()">
-        </form>
-        <div id="result"></div>
-
-        <h2>输入目标文本与多个测试文本，返回相似度</h2>
-        <div>
-            <label for="referenceText">目标文本:</label><br>
-            <textarea id="referenceText" rows="4" cols="50"></textarea>
-        </div>
-        <div id="testTextsContainer">
-            <label>测试文本:</label><br>
-            <textarea class="testText" rows="2" cols="50"></textarea>
-            <textarea class="testText" rows="2" cols="50"></textarea>
-        </div>
-        <button type="button" onclick="addTextField()">添加测试文本</button>
-        <input type="button" value="计算相似度" onclick="calculateBulkSimilarity()">
-        <div id="bulkResult"></div>
-    </body>
-    </html>
-
-    '''
+    return render_template('index.html')
 
     
 

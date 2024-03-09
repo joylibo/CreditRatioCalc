@@ -10,7 +10,7 @@
 * numpy==1.26.4
 * scikit-learn==1.4.1.post1
 * scipy==1.12.0
-* sniffio==1.3.1
+* transformers
 
 ## WSGI HTTP服务器
 gunicorn==21.2.0
@@ -25,6 +25,25 @@ local_model_path = '../bert-base-chinese'
 
 其地址在 https://huggingface.co/google-bert/bert-base-chinese
 需要自行下载全部模型文件，由于比较大，git仓库中没有这些文件
+
+
+## 测试你的环境是否满足项目运行要求
+```
+cd CreditRatioCalc
+python run.py
+```
+如果返回如下信息，说明运行成功
+```
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 106-051-265
+
+```
 
 ## 程序启动命令
 

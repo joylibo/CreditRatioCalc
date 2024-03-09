@@ -11,6 +11,56 @@ local_model_path = './bert-base-chinese'
 tokenizer = BertTokenizer.from_pretrained(local_model_path)
 model = BertModel.from_pretrained(local_model_path)
 
+@app.route('/')
+def index():
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>文本相似度计算</title>
+    </head>
+    <body>
+        <h2>输入两段文本以计算余弦相似度</h2>
+        <form id="similarityForm">
+            <div>
+                <label for="text1">文本1:</label><br>
+                <textarea id="text1" name="text1" rows="4" cols="50"></textarea>
+            </div>
+            <div>
+                <label for="text2">文本2:</label><br>
+                <textarea id="text2" name="text2" rows="4" cols="50"></textarea>
+            </div>
+            <input type="button" value="计算相似度" onclick="calculateSimilarity()">
+        </form>
+        <div id="result"></div>
+
+        <script>
+        function calculateSimilarity() {
+            var text1 = document.getElementById("text1").value;
+            var text2 = document.getElementById("text2").value;
+            
+            fetch('/similarity', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({text1: text1, text2: text2}),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("result").innerHTML = "相似度得分: " + data.result;
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+        </script>
+    </body>
+    </html>
+    '''
+
+    
+
 @app.route('/concat_two', methods=['POST'])
 def concat_two():
     data = request.json

@@ -19,8 +19,10 @@ gunicorn==21.2.0
 代码 `CreditRatioCalc/app/routes.py` 写了如下依赖
 ```
 # 指定本地模型和分词器的路径
-local_model_path = '/home/libo/bert-base-chinese'
+local_model_path = '../bert-base-chinese'
 ```
+因此请确保本地存在bert-base-chinese模型，并把它存放在 `CreditRatioCalc`目录下
+
 其地址在 https://huggingface.co/google-bert/bert-base-chinese
 需要自行下载全部模型文件，由于比较大，git仓库中没有这些文件
 

@@ -164,34 +164,34 @@ def modified_bulk_similarity():
         reference_embedding = reference_output.last_hidden_state[:, 0, :]
 
         similarities = []
+        total_weight = sum(weights.values())
+
         for text in texts_to_compare:
             encoded_input = tokenizer(text, return_tensors='pt')
             with torch.no_grad():
                 model_output = model(**encoded_input)
             sentence_embedding = model_output.last_hidden_state[:, 0, :]
 
-            score = torch.tensor(0.0)
-            total_weight = sum(weights.values())
+            # Initialize an individual score list for aggregation
+            individual_scores = []
 
             if weights['cosine'] > 0:
                 cosine_sim = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=1)
-                score += cosine_sim * (weights['cosine'] / total_weight)
+                individual_scores.append(cosine_sim * (weights['cosine'] / total_weight))
             
             if weights['euclidean'] > 0:
                 euclidean_dist = torch.norm(reference_embedding - sentence_embedding, p=2, dim=1)
                 euclidean_score = (1 / (1 + euclidean_dist)) * (weights['euclidean'] / total_weight)
-                # 确保euclidean_score是正确的形状
-                euclidean_score = euclidean_score.unsqueeze(0) if euclidean_score.dim() == 0 else euclidean_score
-                score += euclidean_score
+                individual_scores.append(euclidean_score)
                 
             if weights['manhattan'] > 0:
                 manhattan_dist = torch.norm(reference_embedding - sentence_embedding, p=1, dim=1)
-                manhattan_score += (1 / (1 + manhattan_dist)) * (weights['manhattan'] / total_weight)
-                # 确保manhattan_score是正确的形状
-                manhattan_score = manhattan_score.unsqueeze(0) if manhattan_score.dim() == 0 else manhattan_score
-                score += manhattan_score
+                manhattan_score = (1 / (1 + manhattan_dist)) * (weights['manhattan'] / total_weight)
+                individual_scores.append(manhattan_score)
 
-            similarities.append(score.item())  # Convert to Python float
+            # Aggregate individual scores into a final score for each text
+            final_score = sum(individual_scores) / len(individual_scores) if individual_scores else torch.tensor(0.0)
+            similarities.append(final_score.item())  # Convert to Python float
 
         return jsonify({'similarities': similarities})
     except Exception as e:

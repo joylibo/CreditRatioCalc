@@ -24,7 +24,7 @@
 
         // 在进行相似度计算之前，更新空的文本区域
         updateEmptyTextsWithPlaceholder();
-        
+
         var referenceText = document.getElementById("referenceText").value;
         var testTexts = Array.from(document.querySelectorAll(".testText")).map(element => element.value);
         var cosineWeight = document.getElementById("cosineWeight").value;
@@ -126,21 +126,6 @@
         container.appendChild(newTextArea);
     }
 
-    function updateValue(id, value) {
-        document.getElementById(id).innerText = value;
-    }
-
-    document.getElementById('cosineWeight').addEventListener('input', function() {
-        updateValue('cosineWeightValue', this.value);
-    });
-
-    document.getElementById('euclideanWeight').addEventListener('input', function() {
-        updateValue('euclideanWeightValue', this.value);
-    });
-
-    document.getElementById('manhattanWeight').addEventListener('input', function() {
-        updateValue('manhattanWeightValue', this.value);
-    });
     </script>
 </head>
 <body>
@@ -171,9 +156,25 @@
         <input type="range" id="manhattanWeight" value="0" step="0.1" min="0" max="1">
         <span id="manhattanWeightValue">0</span><br>
     </div>
-    <p>注意：权重之和为分母，每一项权重为分子，以此来调节各种相似度算法结果在最终结果中的比重</p>
+    <p>注意：权重之和为分母，每一项权重为分子，为了使得比例更直观，请在设置时使三项权重之和等于1</p>
     <input type="button" value="计算相似度" onclick="calculateBulkSimilarity()">
     <hr>
     <div id="bulkResult"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            document.getElementById('cosineWeight').addEventListener('input', function() {
+                updateValue('cosineWeightValue', this.value);
+            });
+        
+            document.getElementById('euclideanWeight').addEventListener('input', function() {
+                updateValue('euclideanWeightValue', this.value);
+            });
+        
+            document.getElementById('manhattanWeight').addEventListener('input', function() {
+                updateValue('manhattanWeightValue', this.value);
+            });
+        });
+    </script>
 </body>
 </html>

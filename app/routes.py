@@ -41,8 +41,7 @@ def index():
 
         function calculateBulkSimilarity() {
             var referenceText = document.getElementById("referenceText").value;
-            var testTexts = Array.from(document.querySelectorAll(".testText"))
-                                .map(element => element.value);
+            var testTexts = Array.from(document.querySelectorAll(".testText")).map(element => element.value);
 
             fetch('/bulk_similarity', {
                 method: 'POST',
@@ -51,18 +50,29 @@ def index():
                 },
                 body: JSON.stringify({reference_text: referenceText, texts_to_compare: testTexts}),
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
-                var results = data.similarities;
-                var resultTable = "<table><tr><th>测试文本</th><th>相似度得分</th></tr>";
-                results.forEach((result, index) => {
-                    resultTable += "<tr><td>" + (index + 1) + "</td><td>" + result + "</td></tr>";
-                });
-                resultTable += "</table>";
-                document.getElementById("bulkResult").innerHTML = resultTable;
+                if(data.similarities && data.similarities.length > 0) {
+                    var results = data.similarities;
+                    var resultTable = "<table><tr><th>测试文本</th><th>相似度得分</th></tr>";
+                    results.forEach((result, index) => {
+                        resultTable += `<tr><td>测试文本 ${index + 1}</td><td>${result}</td></tr>`;
+                    });
+                    resultTable += "</table>";
+                    document.getElementById("bulkResult").innerHTML = resultTable;
+                } else {
+                    // 处理没有相似度数据的情况
+                    document.getElementById("bulkResult").innerHTML = "没有计算出相似度。";
+                }
             })
             .catch((error) => {
                 console.error('Error:', error);
+                document.getElementById("bulkResult").innerHTML = "发生错误，无法计算相似度。";
             });
         }
 

@@ -3,7 +3,28 @@
 <head>
     <title>文本相似度计算</title>
     <script>
+
+    function updateEmptyTextsWithPlaceholder() {
+        // 更新目标文本
+        var referenceTextarea = document.getElementById("referenceText");
+        if (referenceTextarea.value.trim() === '') {
+            referenceTextarea.value = referenceTextarea.placeholder;
+        }
+
+        // 更新所有测试文本
+        var testTextAreas = document.querySelectorAll(".testText");
+        testTextAreas.forEach(function(textarea) {
+            if (textarea.value.trim() === '') {
+                textarea.value = textarea.placeholder;
+            }
+        });
+    }
+
     function calculateBulkSimilarity() {
+
+        // 在进行相似度计算之前，更新空的文本区域
+        updateEmptyTextsWithPlaceholder();
+        
         var referenceText = document.getElementById("referenceText").value;
         var testTexts = Array.from(document.querySelectorAll(".testText")).map(element => element.value);
         var cosineWeight = document.getElementById("cosineWeight").value;

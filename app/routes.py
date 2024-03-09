@@ -232,7 +232,7 @@ def bulk_similarity():
 
             # 计算余弦相似度并归一化
             cosine_similarity = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=0)
-            normalized_cosine_similarity = (cosine_similarity.item() + 1) / 2
+            normalized_cosine_similarity = (cosine_similarity + 1) / 2
 
             # 计算欧氏距离并归一化
             euclidean_distance = euclidean(reference_embedding.squeeze().numpy(), sentence_embedding.squeeze().numpy())

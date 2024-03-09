@@ -179,11 +179,17 @@ def modified_bulk_similarity():
             
             if weights['euclidean'] > 0:
                 euclidean_dist = torch.norm(reference_embedding - sentence_embedding, p=2, dim=1)
-                score += (1 / (1 + euclidean_dist)) * (weights['euclidean'] / total_weight)
+                euclidean_score = (1 / (1 + euclidean_dist)) * (weights['euclidean'] / total_weight)
+                # 确保euclidean_score是正确的形状
+                euclidean_score = euclidean_score.unsqueeze(0) if euclidean_score.dim() == 0 else euclidean_score
+                score += euclidean_score
                 
             if weights['manhattan'] > 0:
                 manhattan_dist = torch.norm(reference_embedding - sentence_embedding, p=1, dim=1)
-                score += (1 / (1 + manhattan_dist)) * (weights['manhattan'] / total_weight)
+                manhattan_score += (1 / (1 + manhattan_dist)) * (weights['manhattan'] / total_weight)
+                # 确保manhattan_score是正确的形状
+                manhattan_score = manhattan_score.unsqueeze(0) if manhattan_score.dim() == 0 else manhattan_score
+                score += manhattan_score
 
             similarities.append(score.item())  # Convert to Python float
 

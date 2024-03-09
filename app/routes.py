@@ -87,7 +87,7 @@ def index():
         </script>
     </head>
     <body>
-        <h2>输入两段文本以计算余弦相似度</h2>
+        <h2>输入两段文本以计算相似度（考虑向量余弦与距离）</h2>
         <form id="similarityForm">
             <div>
                 <label for="text1">文本1:</label><br>
@@ -101,7 +101,7 @@ def index():
         </form>
         <div id="result"></div>
 
-        <h2>输入目标文本与测试文本，返回相似度</h2>
+        <h2>输入目标文本与多个测试文本，返回相似度</h2>
         <div>
             <label for="referenceText">目标文本:</label><br>
             <textarea id="referenceText" rows="4" cols="50"></textarea>

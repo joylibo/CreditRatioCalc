@@ -13,7 +13,7 @@ model = BertModel.from_pretrained(local_model_path)
 
 @app.route('/')
 def index():
-    return render_template('./templates/index.html')
+    return render_template('index.html')
 
     
 

@@ -210,36 +210,40 @@ def similarity():
 
 @app.route('/bulk_similarity', methods=['POST'])
 def bulk_similarity():
-    data = request.json
-    reference_text = data.get('reference_text', '')
-    texts_to_compare = data.get('texts_to_compare', [])
+    try:
+        data = request.json
+        reference_text = data.get('reference_text', '')
+        texts_to_compare = data.get('texts_to_compare', [])
 
-    if not reference_text or not texts_to_compare:
-        return jsonify({'error': 'Reference text and texts to compare are required.'}), 400
+        if not reference_text or not texts_to_compare:
+            return jsonify({'error': 'Reference text and texts to compare are required.'}), 400
 
-    reference_encoded = tokenizer(reference_text, return_tensors='pt')
-    with torch.no_grad():
-        reference_output = model(**reference_encoded)
-    reference_embedding = reference_output.last_hidden_state[:, 0, :]
-
-    similarities = []
-    for text in texts_to_compare:
-        encoded_input = tokenizer(text, return_tensors='pt')
+        reference_encoded = tokenizer(reference_text, return_tensors='pt')
         with torch.no_grad():
-            model_output = model(**encoded_input)
-        sentence_embedding = model_output.last_hidden_state[:, 0, :]
+            reference_output = model(**reference_encoded)
+        reference_embedding = reference_output.last_hidden_state[:, 0, :]
 
-        # 计算余弦相似度并归一化
-        cosine_similarity = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=0)
-        normalized_cosine_similarity = (cosine_similarity.item() + 1) / 2
+        similarities = []
+        for text in texts_to_compare:
+            encoded_input = tokenizer(text, return_tensors='pt')
+            with torch.no_grad():
+                model_output = model(**encoded_input)
+            sentence_embedding = model_output.last_hidden_state[:, 0, :]
 
-        # 计算欧氏距离并归一化
-        euclidean_distance = euclidean(reference_embedding.squeeze().numpy(), sentence_embedding.squeeze().numpy())
-        normalized_euclidean_distance = 1 / (1 + euclidean_distance)
+            # 计算余弦相似度并归一化
+            cosine_similarity = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=0)
+            normalized_cosine_similarity = (cosine_similarity.item() + 1) / 2
 
-        # 计算综合相似度得分
-        similarity_score = (normalized_cosine_similarity + normalized_euclidean_distance) / 2
+            # 计算欧氏距离并归一化
+            euclidean_distance = euclidean(reference_embedding.squeeze().numpy(), sentence_embedding.squeeze().numpy())
+            normalized_euclidean_distance = 1 / (1 + euclidean_distance)
 
-        similarities.append(similarity_score)
+            # 计算综合相似度得分
+            similarity_score = (normalized_cosine_similarity + normalized_euclidean_distance) / 2
 
-    return jsonify({'similarities': similarities})
+            similarities.append(similarity_score)
+
+        return jsonify({'similarities': similarities})
+    except Exception as e:
+        # 捕获任何异常并返回错误信息
+        return jsonify({'error': 'An error occurred during processing: ' + str(e)}), 500

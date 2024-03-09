@@ -190,7 +190,7 @@ def modified_bulk_similarity():
                 individual_scores.append(manhattan_score)
 
             # Aggregate individual scores into a final score for each text
-            final_score = sum(individual_scores) / len(individual_scores) if individual_scores else torch.tensor(0.0)
+            final_score = sum(individual_scores) ##/ len(individual_scores) if individual_scores else torch.tensor(0.0)
             similarities.append(final_score.item())  # Convert to Python float
 
         return jsonify({'similarities': similarities})

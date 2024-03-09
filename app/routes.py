@@ -241,7 +241,10 @@ def bulk_similarity():
             # 计算综合相似度得分
             similarity_score = (normalized_cosine_similarity + normalized_euclidean_distance) / 2
 
-            similarities.append(similarity_score)
+            # 确保将Tensor转换为Python的浮点数
+            similarity_score_value = similarity_score.item()  # 如果similarity_score是一个单元素Tensor
+
+            similarities.append(similarity_score_value)
 
         return jsonify({'similarities': similarities})
     except Exception as e:

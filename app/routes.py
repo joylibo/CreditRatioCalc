@@ -146,3 +146,47 @@ def bulk_similarity():
     except Exception as e:
         # 捕获任何异常并返回错误信息
         return jsonify({'error': 'An error occurred during processing: ' + str(e)}), 500
+    
+@app.route('/modified_bulk_similarity', methods=['POST'])
+def modified_bulk_similarity():
+    try:
+        data = request.json
+        reference_text = data['reference_text']
+        texts_to_compare = data['texts_to_compare']
+        weights = data.get('weights', {'cosine': 1.0, 'euclidean': 0.0, 'manhattan': 0.0})
+
+        if not reference_text or not texts_to_compare:
+            return jsonify({'error': 'Reference text and texts to compare are required.'}), 400
+
+        reference_encoded = tokenizer(reference_text, return_tensors='pt')
+        with torch.no_grad():
+            reference_output = model(**reference_encoded)
+        reference_embedding = reference_output.last_hidden_state[:, 0, :]
+
+        similarities = []
+        for text in texts_to_compare:
+            encoded_input = tokenizer(text, return_tensors='pt')
+            with torch.no_grad():
+                model_output = model(**encoded_input)
+            sentence_embedding = model_output.last_hidden_state[:, 0, :]
+
+            score = torch.tensor(0.0)
+            total_weight = sum(weights.values())
+
+            if weights['cosine'] > 0:
+                cosine_sim = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=1)
+                score += cosine_sim * (weights['cosine'] / total_weight)
+            
+            if weights['euclidean'] > 0:
+                euclidean_dist = torch.norm(reference_embedding - sentence_embedding, p=2, dim=1)
+                score += (1 / (1 + euclidean_dist)) * (weights['euclidean'] / total_weight)
+                
+            if weights['manhattan'] > 0:
+                manhattan_dist = torch.norm(reference_embedding - sentence_embedding, p=1, dim=1)
+                score += (1 / (1 + manhattan_dist)) * (weights['manhattan'] / total_weight)
+
+            similarities.append(score.item())  # Convert to Python float
+
+        return jsonify({'similarities': similarities})
+    except Exception as e:
+        return jsonify({'error': 'An error occurred during processing: ' + str(e)}), 500

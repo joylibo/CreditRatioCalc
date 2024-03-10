@@ -15,7 +15,9 @@ model = BertModel.from_pretrained(local_model_path)
 def index():
     return render_template('index.html')
 
-    
+@app.route('/data_finder')
+def data_finder():
+    return render_template('data-finder.html')
 
 @app.route('/concat_two', methods=['POST'])
 def concat_two():

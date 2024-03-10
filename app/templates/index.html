@@ -162,6 +162,10 @@
     <div id="bulkResult"></div>
 
     <script>
+        function updateValue(id, value) {
+            document.getElementById(id).innerText = value;
+        }
+    
         document.addEventListener('DOMContentLoaded', (event) => {
             document.getElementById('cosineWeight').addEventListener('input', function() {
                 updateValue('cosineWeightValue', this.value);
@@ -176,5 +180,6 @@
             });
         });
     </script>
+    
 </body>
 </html>

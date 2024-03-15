@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>文本相似度计算</title>
+  <style>
+    .text-input {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>文本相似度计算</h2>
+  <div class="text-input">
+    <label for="reference-text">参考文本：</label>
+    <textarea id="reference-text"></textarea>
+  </div>
+  <div id="texts-to-compare">
+    <div class="text-input">
+      <label for="text-to-compare">待比较文本：</label>
+      <textarea class="text-to-compare"></textarea>
+      <button onclick="removeText(this)">删除</button>
+    </div>
+  </div>
+  <button onclick="addText()">添加待比较文本</button>
+  <button onclick="submit()">提交</button>
+  <div id="result" style="display: none;">
+    <h3>接口返回值：</h3>
+    <pre id="result-text"></pre>
+  </div>
+
+  <script>
+    function addText() {
+      const textsToCompare = document.getElementById('texts-to-compare');
+      const textInput = document.createElement('div');
+      textInput.classList.add('text-input');
+      textInput.innerHTML = `
+        <label for="text-to-compare">待比较文本：</label>
+        <textarea class="text-to-compare"></textarea>
+        <button onclick="removeText(this)">删除</button>
+      `;
+      textsToCompare.appendChild(textInput);
+    }
+
+    function removeText(button) {
+      const textInput = button.parentNode;
+      const textsToCompare = document.getElementById('texts-to-compare');
+      if (textsToCompare.childElementCount > 1) {
+        textsToCompare.removeChild(textInput);
+      }
+    }
+
+    function submit() {
+      const referenceText = document.getElementById('reference-text').value;
+      const textInputs = document.getElementsByClassName('text-to-compare');
+      const textsToCompare = Array.from(textInputs).map(input => input.value);
+
+      const requestBody = {
+        reference_text: referenceText,
+        texts_to_compare: textsToCompare,
+        weights: {
+          cosine: 1.0,
+          euclidean: 0.0,
+          manhattan: 0.0
+        }
+      };
+
+      // 发送POST请求到接口
+      fetch('/get_bulk_similarity/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      })
+      .then(response => response.json())
+      .then(data => {
+        const resultDiv = document.getElementById('result');
+        const resultText = document.getElementById('result-text');
+        resultText.textContent = JSON.stringify(data, null, 2);
+        resultDiv.style.display = 'block';
+      })
+      .catch(error => {
+        console.error(error);
+      });
+    }
+  </script>
+</body>
+</html>

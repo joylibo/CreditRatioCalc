@@ -29,21 +29,12 @@ class TextBatch(BaseModel):
     reference_text: str = Field(
         default=None, title="计算相似度的目标文本", max_length=200
     )
-    texts_to_compare: List[constr(min_length=2)] = Field(
-        examples=[["str1", "str2"]],  # 确保至少有两个元素
+    texts_to_compare: List[str] = Field(
+        examples=[["str1", "str2"]],  
         title="待检测文本列表",
-        description="至少包含两个元素",
+        description="当只有一个参数的时候，无论相似度是多少，占比都会是100%",
     )
     weights: Weights
-
-    @validator('texts_to_compare')
-    def validate_texts_to_compare(cls, texts_to_compare):
-        if len(texts_to_compare) <= 1:
-            raise ValueError("至少需要有两段文本参与相似度打分")
-        for text in texts_to_compare:
-            if len(text) > 200:
-                raise ValueError(f"输入的文本不能超过200个汉字，当前长度{len(text)}")
-        return texts_to_compare
 
 class SimilarityScore(BaseModel):
     similarity: float

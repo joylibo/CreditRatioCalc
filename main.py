@@ -5,6 +5,8 @@ from transformers import BertTokenizer, BertModel
 from scipy.spatial.distance import euclidean
 import torch
 from fastapi.templating import Jinja2Templates
+import logging
+from datetime import datetime
 
 app = FastAPI()
 
@@ -14,6 +16,9 @@ local_model_path = './bert-base-chinese'
 # 从本地加载分词器和模型
 tokenizer = BertTokenizer.from_pretrained(local_model_path)
 model = BertModel.from_pretrained(local_model_path)
+
+# 设置日志配置
+logging.basicConfig(filename='api_logs.log', level=logging.INFO)
 
 class Weights(BaseModel):
     cosine: float = 1.0
@@ -58,11 +63,15 @@ async def root(request: Request):
 def get_bulk_similarity(text_batch: TextBatch) -> List[SimilarityScore]:
     """Get similarity between reference text and multiple texts
         
-        接收一个目标文本和一批待检测文本,返回每个待检测文本与检测文本的相似度，以及得分
+        接收一个目标文本和一批待检测文本,返回每个待检测文本与检测文本的相似度，以及一个横向比较的百分比值
     """
     reference_text = text_batch.reference_text
     texts_to_compare = text_batch.texts_to_compare
     weights = text_batch.weights
+
+    # 记录请求时间和参数
+    log_message = f"Request received at {datetime.now()} with the following parameters: reference_text={reference_text}, texts_to_compare={texts_to_compare}, weights={weights}"
+    logging.info(log_message)
 
     reference_embedding = get_embedding(reference_text)
 

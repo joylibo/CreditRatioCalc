@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
+from fastapi import FastAPI, Request, HTTPException
+from pydantic import BaseModel,Field, constr, validator
 from typing import List
 from transformers import BertTokenizer, BertModel
 from scipy.spatial.distance import euclidean
@@ -21,67 +21,107 @@ class Weights(BaseModel):
     manhattan: float = 0.0
 
 class TextBatch(BaseModel):
-    reference_text: str
-    texts_to_compare: List[str]
+    reference_text: str = Field(
+        default=None, title="计算相似度的目标文本", max_length=200
+    )
+    texts_to_compare: List[constr(min_length=2)] = Field(
+        examples=[["str1", "str2"]],  # 确保至少有两个元素
+        title="待检测文本列表",
+        description="至少包含两个元素",
+    )
     weights: Weights
+
+    @validator('texts_to_compare')
+    def validate_texts_to_compare(cls, texts_to_compare):
+        if len(texts_to_compare) <= 1:
+            raise ValueError("至少需要有两段文本参与相似度打分")
+        for text in texts_to_compare:
+            if len(text) > 200:
+                raise ValueError(f"输入的文本不能超过200个汉字，当前长度{len(text)}")
+        return texts_to_compare
 
 class SimilarityScore(BaseModel):
     similarity: float
-    score: float
+    rates: float
 
 
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
 async def root(request: Request):
+    """
+    请求root的时候，会向用户发送一个页面，页面上包含一个文本框，用户可以输入文本，点击提交按钮后，会将文本发送给后端，后端会返回一个相似度分数。
+    """
     return templates.TemplateResponse("similarity-form.html", {"request": request})
 
 @app.post("/get_bulk_similarity/")
 def get_bulk_similarity(text_batch: TextBatch) -> List[SimilarityScore]:
-    """Get similarity between some text"""
-    # 实现计算相似度的逻辑
+    """Get similarity between reference text and multiple texts
+        
+        接收一个目标文本和一批待检测文本,返回每个待检测文本与检测文本的相似度，以及得分
+        
+        请注意在打分的时候按照60-100的区间，所以待检测文本至少需要有两个元素
+    """
     reference_text = text_batch.reference_text
     texts_to_compare = text_batch.texts_to_compare
     weights = text_batch.weights
 
-    reference_encoded = tokenizer(reference_text, return_tensors='pt')
-    with torch.no_grad():
-        reference_output = model(**reference_encoded)
-    reference_embedding = reference_output.last_hidden_state[:, 0, :]
+    reference_embedding = get_embedding(reference_text)
 
-    ## similarity_scores = List[SimilarityScore]
     similarities = []
     total_weight = sum([weight for weight in weights.__dict__.values()])
 
     for text in texts_to_compare:
-        encoded_input = tokenizer(text, return_tensors='pt')
-        with torch.no_grad():
-            model_output = model(**encoded_input)
-            sentence_embedding = model_output.last_hidden_state[:, 0, :]
-        
-        individual_similarity = []
-        
-        if weights.cosine > 0:
-            cosine_sim = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=1)
-            individual_similarity.append(cosine_sim * (weights.cosine / total_weight))
-        
-        if weights.euclidean > 0:
-            euclidean_dist = torch.norm(reference_embedding - sentence_embedding, p=2, dim=1)
-            euclidean_sim = (1 / (1 + euclidean_dist)) * (weights.euclidean / total_weight)
-            individual_similarity.append(euclidean_sim)
-            
-        if weights.manhattan > 0:
-            manhattan_dist = torch.norm(reference_embedding - sentence_embedding, p=1, dim=1)
-            manhattan_sim = (1 / (1 + manhattan_dist)) * (weights.manhattan / total_weight)
-            individual_similarity.append(manhattan_sim)
-
+        sentence_embedding = get_embedding(text)
+        individual_similarity = calculate_individual_similarity(reference_embedding, sentence_embedding, weights, total_weight)
         final_score = sum(individual_similarity)
         similarities.append(final_score.item())
 
-    min_val = min(similarities)
-    max_val = max(similarities)
+    rates = calculate_scores(similarities)
 
-    # 计算每个元素的分数
-    scores = [60 + (x - min_val) * (100 - 60) / (max_val - min_val) for x in similarities]
+    return [SimilarityScore(similarity=s, rates=rates[i]) for i, s in enumerate(similarities)]
 
-    return [SimilarityScore(similarity=s, score=scores[i]) for i, s in enumerate(similarities)]
+def get_embedding(text: str) -> torch.Tensor:
+    """Get the BERT embedding of a text"""
+    encoded_input = tokenizer(text, return_tensors='pt')
+    with torch.no_grad():
+        model_output = model(**encoded_input)
+        sentence_embedding = model_output.last_hidden_state[:, 0, :]
+    return sentence_embedding
+
+def calculate_individual_similarity(reference_embedding: torch.Tensor, sentence_embedding: torch.Tensor, weights: Weights, total_weight: float) -> List[torch.Tensor]:
+    """Calculate individual similarities based on different metrics"""
+    individual_similarity = []
+
+    if weights.cosine > 0:
+        cosine_sim = torch.nn.functional.cosine_similarity(reference_embedding, sentence_embedding, dim=1)
+        individual_similarity.append(cosine_sim * (weights.cosine / total_weight))
+
+    if weights.euclidean > 0:
+        euclidean_dist = torch.norm(reference_embedding - sentence_embedding, p=2, dim=1)
+        euclidean_sim = (1 / (1 + euclidean_dist)) * (weights.euclidean / total_weight)
+        individual_similarity.append(euclidean_sim)
+
+    if weights.manhattan > 0:
+        manhattan_dist = torch.norm(reference_embedding - sentence_embedding, p=1, dim=1)
+        manhattan_sim = (1 / (1 + manhattan_dist)) * (weights.manhattan / total_weight)
+        individual_similarity.append(manhattan_sim)
+
+    return individual_similarity
+
+def calculate_scores(similarities: List[float]) -> List[float]:
+    """Calculate normalized scores on the list of similarities"""
+    sum_of_similarities = sum(similarities)
+    rates = [x / sum_of_similarities for x in similarities]
+
+    # 四舍五入并保留4位小数
+    rounded_rates = [round(rate, 4) for rate in rates]
+
+    # 计算修正后的总和
+    rounded_sum = sum(rounded_rates)
+
+    # 对最后一个元素进行修正，使总和等于1
+    rounded_rates[-1] += 1 - rounded_sum
+
+    # 返回修正后的百分比列表
+    return rounded_rates

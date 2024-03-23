@@ -59,8 +59,6 @@ def get_bulk_similarity(text_batch: TextBatch) -> List[SimilarityScore]:
     """Get similarity between reference text and multiple texts
         
         接收一个目标文本和一批待检测文本,返回每个待检测文本与检测文本的相似度，以及得分
-        
-        请注意在打分的时候按照60-100的区间，所以待检测文本至少需要有两个元素
     """
     reference_text = text_batch.reference_text
     texts_to_compare = text_batch.texts_to_compare

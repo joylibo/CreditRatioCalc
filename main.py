@@ -57,6 +57,38 @@ class ScenePerceptionResponse(BaseModel):
     current_scene: SceneName
     scene_perception: Dict[str, float]
 
+# 定义个人信用值预测的request结构
+class CreditPredictionRequest(BaseModel):
+    scene_name: SceneName
+    resident_id: int
+    prediction_time: str
+# 定义个人信用值预测的response结构
+class CreditPredictionResponse(BaseModel):
+    credit_score: float
+
+# 定义分组信用值预测的request结构
+class CreditPredictionByGroupRequest(BaseModel):
+    scene_name: SceneName
+    group_name: str
+    prediction_time: str
+
+# 定义分组信用值预测的response结构
+class CreditPredictionByGroupResponse(BaseModel):
+    credit_score: float
+
+# 定义个人信用值预警的request结构
+class CreditWarningRequest(BaseModel):
+    scene_name: SceneName # 场景名称
+    warning_time: str # 预警时间
+    warning_threshold: int = 70  # 预警阈值
+
+# 定义个人信用值预警的response结构
+class CreditWarningResponse(BaseModel):
+    resident_id: int  # 预警人员ID
+    resident_name: str  # 预警人员姓名
+    credit_score: float  # 预警人员信用分值
+
+
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
@@ -65,6 +97,32 @@ async def root(request: Request):
     请求root的时候，会向用户发送一个页面，页面上包含一个文本框，用户可以输入文本，点击提交按钮后，会将文本发送给后端，后端会返回一个相似度分数。
     """
     return templates.TemplateResponse("similarity-form.html", {"request": request})
+
+@app.post("/warning_by_scene/")
+def credit_warning_handler(request_data: CreditWarningRequest):
+    # 在这里执行信用值预警的逻辑
+    # 假设返回的预警人员ID为 123，预警人员姓名为 "张三"，信用分值为 80.5
+    resident_id = 123
+    resident_name = "张三"
+    credit_score = 68.5
+    response_data = CreditWarningResponse(resident_id=resident_id, resident_name=resident_name, credit_score=credit_score)
+    return response_data
+
+@app.post("/credit_prediction_by_group/")
+def credit_prediction_by_group_handler(request_data: CreditPredictionByGroupRequest):
+    # 在这里执行群体信用值预测的逻辑
+    # 假设返回的信用分值为 80.5
+    credit_score = 80.5
+    response_data = CreditPredictionByGroupResponse(credit_score=credit_score)
+    return response_data
+
+@app.post("/credit_prediction_by_resident/")
+def credit_prediction_by_resident_handler(request_data: CreditPredictionRequest):
+    # 在这里执行个人信用值预测的逻辑
+    # 假设返回的信用分值为 80.5
+    credit_score = 80.5
+    response_data = CreditPredictionResponse(credit_score=credit_score)
+    return response_data
 
 @app.post("/perception")
 def perception_handler(request_data: CurrentSceneRequest):

@@ -9,6 +9,7 @@
   </style>
 </head>
 <body>
+<!-- 文本相似度 -->
   <h2>文本相似度计算</h2>
   <div class="text-input">
     <label for="reference-text">参考文本：</label>
@@ -51,8 +52,93 @@
     <h3>接口返回值：</h3>
     <pre id="result-text"></pre>
   </div>
+<!-- 势态感知 -->
+  <hr>
+  <h2>势态感知</h2>
+  <form>
+    <label for="sceneName">场景名称:</label>
+    <select id="sceneName">
+      <option value="平安社区">平安社区</option>
+      <option value="信用党建">信用党建</option>
+      <option value="信用养老">信用养老</option>
+    </select>
+    <br>
+    <label for="perceptionDeadline">感知截止时间:</label>
+    <input type="datetime-local" id="perceptionDeadline">
+    <br>
+    <button type="button" onclick="submitForm()">提交</button>
+  </form>
+  <br>
+  <h3>接口返回值：</h3>
+  <div id="result_perception"></div>
 
-  <script>
+<!-- 个人信用值预测 -->
+<hr>
+<h2>个人信用值预测</h2>
+<form>
+  <label for="sceneName">场景名称:</label>
+  <select id="sceneName">
+    <option value="平安社区">平安社区</option>
+    <option value="信用党建">信用党建</option>
+    <option value="信用养老">信用养老</option>
+  </select>
+  <br>
+  <label for="residentId">居民ID:</label>
+  <input type="number" id="residentId">
+  <br>
+  <label for="predictionTime">预测时间:</label>
+  <input type="datetime-local" id="predictionTime">
+  <br>
+  <button type="button" onclick="submitCreditPrediction()">提交</button>
+</form>
+<br>
+<div id="predictionResult"></div>
+
+<!-- 分组信用值预测 -->
+<hr>
+<h2>分组信用值预测</h2>
+<form>
+  <label for="sceneName">场景名称:</label>
+  <select id="sceneName_group">
+    <option value="平安社区">平安社区</option>
+    <option value="信用党建">信用党建</option>
+    <option value="信用养老">信用养老</option>
+  </select>
+  <br>
+  <label for="groupName">分组名称:</label>
+  <input type="text" id="groupName_group">
+  <br>
+  <label for="predictionTime">预测时间:</label>
+  <input type="datetime-local" id="predictionTime_group">
+  <br>
+  <button type="button" onclick="submitCreditPredictionByGroup()">提交</button>
+</form>
+<br>
+<div id="predictionResultByGroup"></div>
+
+<!-- 信用值预警 -->
+<hr>
+<h2>个人信用值预警</h2>
+<form>
+  <label for="scene">场景名称:</label>
+  <select id="scene">
+    <option value="平安社区">平安社区</option>
+    <option value="信用党建">信用党建</option>
+    <option value="信用养老">信用养老</option>
+  </select>
+  <br>
+  <label for="warningTime">预警时间:</label>
+  <input type="datetime-local" id="warningTime">
+  <br>
+  <label for="warningThreshold">预警阈值:</label>
+  <input type="number" id="warningThreshold" min="0" max="100" step="1" value="70">
+  <br>
+  <button type="button" onclick="submitCreditWarning()">提交</button>
+</form>
+<br>
+<div id="warningResult"></div>
+
+<script>
 
     function updateValue(id, value) {
         document.getElementById(id).innerText = value;
@@ -130,6 +216,115 @@
       .catch(error => {
         console.error(error);
       });
+    }
+
+    function submitForm() {
+      var formData = {
+        scene_name: document.getElementById("sceneName").value,
+        perception_deadline: document.getElementById("perceptionDeadline").value
+      };
+
+      fetch("/perception", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
+      })
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error("请求失败");
+          }
+          return response.json();
+        })
+        .then(function(data) {
+          document.getElementById("result_perception").innerText = "势态感知结果: " + JSON.stringify(data, null, 2);
+        })
+        .catch(function(error) {
+          console.error(error);
+        });
+    }
+
+    function submitCreditPrediction() {
+      var formData = {
+        scene_name: document.getElementById("sceneName").value,
+        resident_id: document.getElementById("residentId").value,
+        prediction_time: document.getElementById("predictionTime").value
+      };
+
+      fetch("/credit_prediction_by_resident", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
+      })
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error("请求失败");
+          }
+          return response.text();
+        })
+        .then(function(data) {
+          document.getElementById("predictionResult").innerText = "个人信用值预测结果: " + JSON.stringify(data, null, 2);
+        })
+        .catch(function(error) {
+          console.error(error);
+        });
+    }
+    function submitCreditPredictionByGroup() {
+      var formData = {
+        scene_name: document.getElementById("sceneName_group").value,
+        group_name: document.getElementById("groupName_group").value,
+        prediction_time: document.getElementById("predictionTime_group").value
+      };
+
+      fetch("/credit_prediction_by_group", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
+      })
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error("请求失败");
+          }
+          return response.text();
+        })
+        .then(function(data) {
+          document.getElementById("predictionResultByGroup").innerText = "分组信用值预测结果: " + JSON.stringify(data, null, 2);
+        })
+        .catch(function(error) {
+          console.error(error);
+        });
+    }
+    function submitCreditWarning() {
+      var formData = {
+        scene_name: document.getElementById("scene").value,
+        warning_time: document.getElementById("warningTime").value,
+        warning_threshold: document.getElementById("warningThreshold").value
+      };
+
+      fetch("/warning_by_scene", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
+      })
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error("请求失败");
+          }
+          return response.text();
+        })
+        .then(function(data) {
+          document.getElementById("warningResult").innerText = "个人信用值预警结果: " + JSON.stringify(data, null, 2);
+        })
+        .catch(function(error) {
+          console.error(error);
+        });
     }
   </script>
 </body>

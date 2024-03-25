@@ -9,6 +9,7 @@ import logging
 from enum import Enum
 from typing import Dict
 from datetime import datetime
+import hashlib
 
 app = FastAPI()
 
@@ -61,7 +62,7 @@ class ScenePerceptionResponse(BaseModel):
 class CreditPredictionRequest(BaseModel):
     scene_name: SceneName
     resident_id: int
-    prediction_time: str
+    prediction_time: datetime
 # 定义个人信用值预测的response结构
 class CreditPredictionResponse(BaseModel):
     credit_score: float
@@ -70,7 +71,7 @@ class CreditPredictionResponse(BaseModel):
 class CreditPredictionByGroupRequest(BaseModel):
     scene_name: SceneName
     group_name: str
-    prediction_time: str
+    prediction_time: datetime
 
 # 定义分组信用值预测的response结构
 class CreditPredictionByGroupResponse(BaseModel):
@@ -79,7 +80,7 @@ class CreditPredictionByGroupResponse(BaseModel):
 # 定义个人信用值预警的request结构
 class CreditWarningRequest(BaseModel):
     scene_name: SceneName # 场景名称
-    warning_time: str # 预警时间
+    warning_time: datetime # 预警时间
     warning_threshold: int = 70  # 预警阈值
 
 # 定义个人信用值预警的response结构
@@ -103,7 +104,7 @@ def credit_warning_handler(request_data: CreditWarningRequest):
     """信用值预警接口
     """
     resident_id = 123
-    resident_name = "张三"
+    resident_name = "雷文丽"
     credit_score = 68.5
     response_data = [CreditWarningResponse(resident_id=resident_id, resident_name=resident_name, credit_score=credit_score)]
     return response_data
@@ -112,7 +113,11 @@ def credit_warning_handler(request_data: CreditWarningRequest):
 def credit_prediction_by_group_handler(request_data: CreditPredictionByGroupRequest):
     """分组信用值预测接口
     """
-    credit_score = 80.5
+    scene_name = request_data.scene_name
+    group_name = request_data.group_name
+    prediction_time = request_data.prediction_time
+    random_value = calculate_value_string(scene_name, group_name, prediction_time)
+    credit_score = 85.5 + random_value
     response_data = CreditPredictionByGroupResponse(credit_score=credit_score)
     return response_data
 
@@ -120,7 +125,11 @@ def credit_prediction_by_group_handler(request_data: CreditPredictionByGroupRequ
 def credit_prediction_by_resident_handler(request_data: CreditPredictionRequest):
     """个人信用值预测接口
     """
-    credit_score = 80.5
+    user_id = request_data.resident_id
+    scene_name = request_data.scene_name
+    prediction_time = request_data.prediction_time
+    random_value = calculate_value(user_id, scene_name, prediction_time)
+    credit_score = 85.5 + random_value
     response_data = CreditPredictionResponse(credit_score=credit_score)
     return response_data
 
@@ -245,3 +254,37 @@ def calculate_scores(similarities: List[float]) -> List[float]:
 
     # 返回修正后的百分比列表
     return rounded_rates
+
+def calculate_value(int_value: int, string_value: str, datetime_value: datetime) -> int:
+    # 将int_value和string_value转换为字节串
+    int_bytes = int_value.to_bytes(4, 'big')
+    string_bytes = string_value.encode('utf-8')
+    
+    # 计算md5散列值
+    hash_input = int_bytes + string_bytes + datetime_value.isoformat().encode('utf-8')
+    hash_value = hashlib.md5(hash_input).hexdigest()
+    
+    # 将md5散列值转换为整数
+    hash_int = int(hash_value, 16)
+    
+    # 取余并映射到0～5的范围
+    result = hash_int % 6
+    
+    return result
+
+def calculate_value_string(string_value1: str, string_value2: str, datetime_value: datetime) -> int:
+    # 将int_value和string_value转换为字节串
+    string_bytes1 = string_value1.encode('utf-8')
+    string_bytes2 = string_value2.encode('utf-8')
+    
+    # 计算md5散列值
+    hash_input = string_bytes1 + string_bytes2 + datetime_value.isoformat().encode('utf-8')
+    hash_value = hashlib.md5(hash_input).hexdigest()
+    
+    # 将md5散列值转换为整数
+    hash_int = int(hash_value, 16)
+    
+    # 取余并映射到0～5的范围
+    result = hash_int % 6
+    
+    return result

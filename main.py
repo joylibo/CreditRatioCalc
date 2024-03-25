@@ -54,8 +54,8 @@ class CurrentSceneRequest(BaseModel):
 
 # 定义势态感知的返回结构
 class ScenePerceptionResponse(BaseModel):
-    current_scene: Dict[str, str]
-    scene_perception: Dict[str, str]
+    current_scene: SceneName
+    scene_perception: Dict[str, float]
 
 templates = Jinja2Templates(directory="templates")
 
@@ -70,7 +70,7 @@ async def root(request: Request):
 def perception_handler(request_data: CurrentSceneRequest):
     if request_data.scene_name == SceneName.SHE_QU:
         response_data = ScenePerceptionResponse(
-            current_scene={},
+            current_scene=SceneName.SHE_QU,
             scene_perception={
                 "吸毒人员": -0.10,
                 "刑满释放人员": 0,
@@ -86,7 +86,7 @@ def perception_handler(request_data: CurrentSceneRequest):
         )
     elif request_data.scene_name == SceneName.DANG_JIAN:
         response_data = ScenePerceptionResponse(
-            current_scene={},
+            current_scene=SceneName.DANG_JIAN,
             scene_perception={
                 "党政机关党员": 0.10,
                 "国有企业党员": 0.12,
@@ -100,7 +100,7 @@ def perception_handler(request_data: CurrentSceneRequest):
         )
     elif request_data.scene_name == SceneName.YANG_LAO:
         response_data = ScenePerceptionResponse(
-            current_scene={},
+            current_scene=SceneName.YANG_LAO,
             scene_perception={
                 "独居老人": 0,
                 "高龄老人": 0,

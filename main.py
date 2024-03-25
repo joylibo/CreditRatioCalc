@@ -68,6 +68,8 @@ async def root(request: Request):
 
 @app.post("/perception")
 def perception_handler(request_data: CurrentSceneRequest):
+    """势态感知的接口，根据场景和一个时间，返回一个势态感知的字典
+    """
     if request_data.scene_name == SceneName.SHE_QU:
         response_data = ScenePerceptionResponse(
             current_scene=SceneName.SHE_QU,

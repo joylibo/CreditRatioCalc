@@ -6,6 +6,8 @@ from scipy.spatial.distance import euclidean
 import torch
 from fastapi.templating import Jinja2Templates
 import logging
+from enum import Enum
+from typing import Dict
 from datetime import datetime
 
 app = FastAPI()
@@ -40,6 +42,20 @@ class SimilarityScore(BaseModel):
     similarity: float
     rates: float
 
+# 定义势态感知的request结构
+class SceneName(str, Enum):
+    SHE_QU = "平安社区"
+    DANG_JIAN = "信用党建"
+    YANG_LAO = "信用养老"
+
+class CurrentSceneRequest(BaseModel):
+    scene_name: SceneName
+    perception_deadline: datetime
+
+# 定义势态感知的返回结构
+class ScenePerceptionResponse(BaseModel):
+    current_scene: Dict[str, str]
+    scene_perception: Dict[str, str]
 
 templates = Jinja2Templates(directory="templates")
 
@@ -49,6 +65,52 @@ async def root(request: Request):
     请求root的时候，会向用户发送一个页面，页面上包含一个文本框，用户可以输入文本，点击提交按钮后，会将文本发送给后端，后端会返回一个相似度分数。
     """
     return templates.TemplateResponse("similarity-form.html", {"request": request})
+
+@app.post("/perception")
+def perception_handler(request_data: CurrentSceneRequest):
+    if request_data.scene_name == SceneName.SHE_QU:
+        response_data = ScenePerceptionResponse(
+            current_scene={},
+            scene_perception={
+                "吸毒人员": -0.10,
+                "刑满释放人员": 0,
+                "精神病人员": 0,
+                "低保人员": 0,
+                "社区矫正": 0,
+                "空巢老人": 0,
+                "五保人员": 0.10,
+                "残疾人": 0.12,
+                "重大疾病致困人员": 0,
+                "邪教人员": 0
+            }
+        )
+    elif request_data.scene_name == SceneName.DANG_JIAN:
+        response_data = ScenePerceptionResponse(
+            current_scene={},
+            scene_perception={
+                "党政机关党员": 0.10,
+                "国有企业党员": 0.12,
+                "民营企业党员": 0,
+                "事业单位党员": 0.12,
+                "社会组织党员": 0,
+                "两新组织党员": 0.18,
+                "村社基层组织党员": 0,
+                "其他": 0
+            }
+        )
+    elif request_data.scene_name == SceneName.YANG_LAO:
+        response_data = ScenePerceptionResponse(
+            current_scene={},
+            scene_perception={
+                "独居老人": 0,
+                "高龄老人": 0,
+                "伤残老人": 0.01,
+                "困难老人": 0,
+                "社区养老服务人员": 0
+            }
+        )
+    return response_data
+
 
 @app.post("/get_bulk_similarity/")
 def get_bulk_similarity(text_batch: TextBatch) -> List[SimilarityScore]:

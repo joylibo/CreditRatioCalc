@@ -100,26 +100,26 @@ async def root(request: Request):
 
 @app.post("/warning_by_scene/")
 def credit_warning_handler(request_data: CreditWarningRequest):
-    # 在这里执行信用值预警的逻辑
-    # 假设返回的预警人员ID为 123，预警人员姓名为 "张三"，信用分值为 80.5
+    """信用值预警接口
+    """
     resident_id = 123
     resident_name = "张三"
     credit_score = 68.5
-    response_data = CreditWarningResponse(resident_id=resident_id, resident_name=resident_name, credit_score=credit_score)
+    response_data = [CreditWarningResponse(resident_id=resident_id, resident_name=resident_name, credit_score=credit_score)]
     return response_data
 
 @app.post("/credit_prediction_by_group/")
 def credit_prediction_by_group_handler(request_data: CreditPredictionByGroupRequest):
-    # 在这里执行群体信用值预测的逻辑
-    # 假设返回的信用分值为 80.5
+    """分组信用值预测接口
+    """
     credit_score = 80.5
     response_data = CreditPredictionByGroupResponse(credit_score=credit_score)
     return response_data
 
 @app.post("/credit_prediction_by_resident/")
 def credit_prediction_by_resident_handler(request_data: CreditPredictionRequest):
-    # 在这里执行个人信用值预测的逻辑
-    # 假设返回的信用分值为 80.5
+    """个人信用值预测接口
+    """
     credit_score = 80.5
     response_data = CreditPredictionResponse(credit_score=credit_score)
     return response_data

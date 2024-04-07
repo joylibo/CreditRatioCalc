@@ -7,11 +7,16 @@
 
 * Python 3.11.8
 * fastAPI
+* sqlmodel
 * pytorch
 * numpy==1.26.4
 * scikit-learn==1.4.1.post1
 * scipy==1.12.0
 * transformers
+
+连接数据库的工具安装：
+conda install -c conda-forge sqlmodel
+conda install -c conda-forge mysqlclient
 
 ## ASGI HTTP服务器
 uvicorn

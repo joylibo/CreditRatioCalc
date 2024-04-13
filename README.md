@@ -22,12 +22,12 @@ conda install -c conda-forge mysqlclient
 uvicorn
 
 ## 外部依赖
-代码 `CreditRatioCalc/main.py` 写了如下依赖
+代码 `CreditRatioCalc/app/routes/similarity.py` 写了如下依赖
 ```
-# 指定本地模型和分词器的路径
-local_model_path = './bert-base-chinese'
+# 构建本地模型的路径
+local_model_path = os.path.join(current_dir, '..', '..', 'bert-base-chinese')
 ```
-因此请确保本地存在bert-base-chinese模型，并把它存放在 `CreditRatioCalc`目录下
+因此请确保本地存在bert-base-chinese模型，并把它存放在 `CreditRatioCalc`目录下, 与`app`目录同级
 
 其地址在 https://huggingface.co/google-bert/bert-base-chinese
 需要自行下载全部模型文件，由于比较大，git仓库中没有这些文件
@@ -39,7 +39,7 @@ local_model_path = './bert-base-chinese'
 ## 程序启动命令
 
 ```
-nohup uvicorn main:app --reload &
+nohup uvicorn app.main:app &
 ```
 
 ## 程序停止命令

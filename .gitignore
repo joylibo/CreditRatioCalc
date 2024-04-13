@@ -7,3 +7,5 @@ bert-base-chinese/
 .pytest_cache
 
 __pycache__/
+
+app/config/*.py

@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Session, Field, select
 from datetime import datetime, date
-from database import engine
+from app.database import engine
 
 """
 用于训练信用分预测模型

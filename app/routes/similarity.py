@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+import os
+from fastapi import APIRouter
 from typing import List
 from transformers import BertTokenizer, BertModel
 import torch
@@ -6,19 +7,22 @@ import logging
 from datetime import datetime
 from app.models.text_batch import TextBatch, SimilarityScore, Weights
 
-app = FastAPI()
+router = APIRouter()
 
 # 设置日志配置
 logging.basicConfig(filename='api_logs.log', level=logging.INFO)
 
-# 指定本地模型和分词器的路径
-local_model_path = '../bert-base-chinese'
+# 获取当前文件的父目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 构建本地模型的路径
+local_model_path = os.path.join(current_dir, '..', '..', 'bert-base-chinese')
 
 # 从本地加载分词器和模型
 tokenizer = BertTokenizer.from_pretrained(local_model_path)
 model = BertModel.from_pretrained(local_model_path)
 
-@app.post("/get_bulk_similarity/")
+@router.post("/get_bulk_similarity/")
 def get_bulk_similarity(text_batch: TextBatch) -> List[SimilarityScore]:
     """Get similarity between reference text and multiple texts
         

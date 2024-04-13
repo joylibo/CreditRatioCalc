@@ -1,12 +1,11 @@
-from fastapi import FastAPI
-from models.mock_models import *
+from fastapi import APIRouter
+from app.models.mock_models import *
 import hashlib
 
 
-app = FastAPI()
+router = APIRouter()
 
-
-@app.post("/warning_by_scene/")
+@router.post("/warning_by_scene/")
 def credit_warning_handler(request_data: CreditWarningRequest):
     """信用值预警接口
     """
@@ -16,7 +15,7 @@ def credit_warning_handler(request_data: CreditWarningRequest):
     response_data = [CreditWarningResponse(resident_id=resident_id, resident_name=resident_name, credit_score=credit_score)]
     return response_data
 
-@app.post("/credit_prediction_by_group/")
+@router.post("/credit_prediction_by_group/")
 def credit_prediction_by_group_handler(request_data: CreditPredictionByGroupRequest):
     """分组信用值预测接口
     """
@@ -28,7 +27,7 @@ def credit_prediction_by_group_handler(request_data: CreditPredictionByGroupRequ
     response_data = CreditPredictionByGroupResponse(credit_score=credit_score)
     return response_data
 
-@app.post("/credit_prediction_by_resident/")
+@router.post("/credit_prediction_by_resident/")
 def credit_prediction_by_resident_handler(request_data: CreditPredictionRequest):
     """个人信用值预测接口
     """
@@ -40,7 +39,7 @@ def credit_prediction_by_resident_handler(request_data: CreditPredictionRequest)
     response_data = CreditPredictionResponse(credit_score=credit_score)
     return response_data
 
-@app.post("/perception")
+@router.post("/perception")
 def perception_handler(request_data: CurrentSceneRequest):
     """势态感知的接口，根据场景和一个时间，返回一个势态感知的字典
     """

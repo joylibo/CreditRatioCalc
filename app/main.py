@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import formpage, mock, similarity
+from app.routes import formpage, mock, similarity, people
 
 app = FastAPI()
 
@@ -7,6 +7,7 @@ app = FastAPI()
 app.include_router(formpage.router)
 app.include_router(mock.router)
 app.include_router(similarity.router)
+app.include_router(people.router)
 
 if __name__ == "__main__":
     import uvicorn

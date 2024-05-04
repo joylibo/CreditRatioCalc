@@ -38,6 +38,12 @@ local_model_path = os.path.join(current_dir, '..', '..', 'bert-base-chinese')
 
 ## 程序启动命令
 
+调试模式
+```
+uvicorn app.main:app --reload
+```    
+
+生产模式
 ```
 nohup uvicorn app.main:app &
 ```

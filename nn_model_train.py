@@ -78,11 +78,13 @@ class CreditScoreModel(nn.Module):
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        batch_size = x.size(0)
+        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
         _, (hn, _) = self.lstm(x, (h0, c0))
         out = self.fc(hn[-1])
         return out
+
 
 # 使用 GPU 进行加速计算
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

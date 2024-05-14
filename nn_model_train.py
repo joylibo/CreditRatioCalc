@@ -49,18 +49,16 @@ class CreditDataset(Dataset):
 
     def __getitem__(self, idx):
         group = self.data.iloc[idx]
-        X, y = self.generate_windows(group)
+        X, y = self.generate_windows(group, self.window_size, self.future_days)  # 传递 future_days 参数
         return X, y
 
-    def generate_windows(group, window_size, future_days):
+    def generate_windows(self, group, window_size, future_days):
         X, y = [], []
-        for i in range(window_size, len(group) - future_days + 1):
-            X.append(group.iloc[i-window_size:i, 2:].values)
-            y.append(group.iloc[i:i+future_days, 2].values.flatten())
-        X_batch = np.array(X)
-        # 调整 X_batch 的维度，添加 batch_size 和 seq_len 维度
-        X_batch = np.expand_dims(X_batch, axis=0)
-        return X_batch, np.array(y)
+        for i in range(len(group) - window_size - future_days + 1):
+            X.append(group.iloc[i:i+window_size, 2:].values)
+            y.append(group.iloc[i+window_size:i+window_size+future_days, 2].values.flatten())
+        return np.array(X), np.array(y)
+
 
 
 # 划分训练集和测试集

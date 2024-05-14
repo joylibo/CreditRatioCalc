@@ -8,7 +8,7 @@ import torch.nn as nn
 
 # 读取数据
 print('读取数据')
-data = pd.read_excel('/Users/libo/Downloads/历史信用及行为数据.xlsx')
+data = pd.read_excel('./历史信用及行为数据.xlsx')
 data = data.dropna(subset=['credit_score'])  # 删除目标变量为空的行
 print('done')
 

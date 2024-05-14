@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
@@ -45,21 +45,14 @@ class CreditDataset(Dataset):
         self.future_days = future_days
 
     def __len__(self):
-        return len(self.data)
+        return len(self.data) - self.window_size - self.future_days + 1
 
     def __getitem__(self, idx):
-        group = self.data.iloc[idx]
-        X, y = self.generate_windows(group, self.window_size, self.future_days)  # 传递 future_days 参数
+        X = self.data.iloc[idx:idx + self.window_size, 2:].values
+        y = self.data.iloc[idx + self.window_size:idx + self.window_size + self.future_days, 2].values.flatten()
+        X = np.array(X, dtype=np.float32)
+        y = np.array(y, dtype=np.float32)
         return X, y
-
-    def generate_windows(self, group, window_size, future_days):
-        X, y = [], []
-        for i in range(len(group) - window_size - future_days + 1):
-            X.append(group.iloc[i:i+window_size, 2:].values)
-            y.append(group.iloc[i+window_size:i+window_size+future_days, 2].values.flatten())
-        return np.array(X), np.array(y)
-
-
 
 # 划分训练集和测试集
 train_data, test_data = train_test_split(data, test_size=0.2, random_state=42)
@@ -87,7 +80,6 @@ class CreditScoreModel(nn.Module):
         out = self.fc(hn[-1])
         return out
 
-
 # 使用 GPU 进行加速计算
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f'Using device: {device}')
@@ -107,10 +99,10 @@ optimizer = torch.optim.Adam(model.parameters())
 print('训练模型')
 num_epochs = 50
 
-for epoch in range(num_epochs):
+for epoch in trange(num_epochs, desc='Epochs'):
     epoch_loss = 0
     model.train()
-    for X_batch, y_batch in train_loader:
+    for X_batch, y_batch in tqdm(train_loader, desc='Batches', leave=False):
         X_batch = X_batch.float().to(device)
         y_batch = y_batch.float().to(device)
 
@@ -132,7 +124,7 @@ all_preds = []
 all_targets = []
 
 with torch.no_grad():
-    for X_test, y_test in test_loader:
+    for X_test, y_test in tqdm(test_loader, desc='Evaluating', leave=False):
         X_test = X_test.float().to(device)
         y_test = y_test.float().to(device)
 

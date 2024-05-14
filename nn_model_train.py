@@ -78,12 +78,16 @@ class CreditScoreModel(nn.Module):
         out = self.fc(hn[-1])
         return out
 
+# 检查是否有可用的 GPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f'Using device: {device}')
+
 # 实例化模型
 input_size = len(numeric_cols) - 2  # 减去 'resident_id' 和 'record_date'
 hidden_size = 128
-output_size = 30  # 预测未来30天
+output_size = 30  # 预测未来30天的信用分数
 
-model = CreditScoreModel(input_size, hidden_size, output_size)
+model = CreditScoreModel(input_size, hidden_size, output_size).to(device)
 
 # 定义损失函数和优化器
 criterion = nn.MSELoss()
@@ -102,9 +106,9 @@ for epoch in range(num_epochs):
     epoch_loss = 0
     with tqdm(total=total_windows, desc=f'Epoch {epoch+1}/{num_epochs}') as pbar:
         for X_batch, y_batch in data_generator(data, window_size, future_days):
-            X_batch = torch.from_numpy(np.array(X_batch, dtype=np.float32))
-            y_batch = torch.from_numpy(np.array(y_batch, dtype=np.float32))
-            
+            X_batch = torch.from_numpy(np.array(X_batch, dtype=np.float32)).to(device)
+            y_batch = torch.from_numpy(np.array(y_batch, dtype=np.float32)).to(device)
+
             outputs = model(X_batch)
             loss = criterion(outputs, y_batch)
             
@@ -125,12 +129,12 @@ for X_sample, y_sample in data_generator(data, window_size, future_days):
     X_test.append(X_sample)
     y_test.append(y_sample)
 
-X_test = torch.from_numpy(np.array(X_test, dtype=np.float32))
-y_test = torch.from_numpy(np.array(y_test, dtype=np.float32))
+X_test = torch.from_numpy(np.array(X_test, dtype=np.float32)).to(device)
+y_test = torch.from_numpy(np.array(y_test, dtype=np.float32)).to(device)
 
 with torch.no_grad():
     y_pred = model(X_test)
-    rmse = mean_squared_error(y_test.numpy(), y_pred.numpy(), squared=False)
+    rmse = mean_squared_error(y_test.cpu().numpy(), y_pred.cpu().numpy(), squared=False)
     print(f'RMSE: {rmse}')
 print('done')
 

@@ -52,12 +52,16 @@ class CreditDataset(Dataset):
         X, y = self.generate_windows(group)
         return X, y
 
-    def generate_windows(self, group):
+    def generate_windows(group, window_size, future_days):
         X, y = [], []
-        for i in range(self.window_size, len(group) - self.future_days + 1):
-            X.append(group.iloc[i-self.window_size:i, 2:].values)
-            y.append(group.iloc[i:i+self.future_days, 2].values.flatten())
-        return np.array(X), np.array(y)
+        for i in range(window_size, len(group) - future_days + 1):
+            X.append(group.iloc[i-window_size:i, 2:].values)
+            y.append(group.iloc[i:i+future_days, 2].values.flatten())
+        X_batch = np.array(X)
+        # 调整 X_batch 的维度，添加 batch_size 和 seq_len 维度
+        X_batch = np.expand_dims(X_batch, axis=0)
+        return X_batch, np.array(y)
+
 
 # 划分训练集和测试集
 train_data, test_data = train_test_split(data, test_size=0.2, random_state=42)

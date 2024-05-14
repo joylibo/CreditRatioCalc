@@ -8,7 +8,7 @@ import torch.nn as nn
 
 # 读取数据
 print('读取数据')
-data = pd.read_excel('./历史信用及行为数据.xlsx')
+data = pd.read_excel('/Users/libo/Downloads/历史信用及行为数据.xlsx')
 data = data.dropna(subset=['credit_score'])  # 删除目标变量为空的行
 print('done')
 
@@ -45,40 +45,34 @@ numeric_cols = data.select_dtypes(include=['float64', 'int64', 'uint8']).columns
 
 # 构造滑动窗口数据生成器
 def generate_windows(group, window_size, future_days):
+    X, y = [], []
     for i in range(window_size, len(group) - future_days + 1):
-        X = group.iloc[i-window_size:i, 2:].values
-        y = group.iloc[i:i+future_days, 2].values.flatten()
-        yield X, y
+        X.append(group.iloc[i-window_size:i, 2:].values)
+        y.append(group.iloc[i:i+future_days, 2].values.flatten())
+    return np.array(X), np.array(y)
 
 def data_generator(data, window_size, future_days):
     for _, group in data.groupby('resident_id'):
-        for X, y in generate_windows(group, window_size, future_days):
-            yield X, y
+        X, y = generate_windows(group, window_size, future_days)
+        yield X, y
 
-# 定义模型
+# 定义简化模型
 class CreditScoreModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_layers=2):
         super(CreditScoreModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.conv1d = nn.Conv1d(in_channels=1, out_channels=64, kernel_size=3, padding=1)
-        self.pool1d = nn.MaxPool1d(kernel_size=2)
-        self.lstm = nn.LSTM(input_size=64, hidden_size=hidden_size, num_layers=num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        batch_size = x.size(0)
-        x = x.unsqueeze(1)  # 添加通道维度
-        x = self.conv1d(x)
-        x = self.pool1d(x)
-        x = x.transpose(1, 2)  # 转置为 (batch_size, seq_len, features)
-        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
-        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).to(x.device)
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
         _, (hn, _) = self.lstm(x, (h0, c0))
         out = self.fc(hn[-1])
         return out
 
-# 检查是否有可用的 GPU
+# 使用 GPU 进行加速计算
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f'Using device: {device}')
 
@@ -99,15 +93,14 @@ num_epochs = 50
 window_size = 100
 future_days = 30
 
-# 统计总窗口数量
 total_windows = sum(len(group) - window_size - future_days + 1 for _, group in data.groupby('resident_id'))
 
 for epoch in range(num_epochs):
     epoch_loss = 0
     with tqdm(total=total_windows, desc=f'Epoch {epoch+1}/{num_epochs}') as pbar:
         for X_batch, y_batch in data_generator(data, window_size, future_days):
-            X_batch = torch.from_numpy(np.array(X_batch, dtype=np.float32)).to(device)
-            y_batch = torch.from_numpy(np.array(y_batch, dtype=np.float32)).to(device)
+            X_batch = torch.from_numpy(X_batch).float().to(device)
+            y_batch = torch.from_numpy(y_batch).float().to(device)
 
             outputs = model(X_batch)
             loss = criterion(outputs, y_batch)
@@ -129,8 +122,8 @@ for X_sample, y_sample in data_generator(data, window_size, future_days):
     X_test.append(X_sample)
     y_test.append(y_sample)
 
-X_test = torch.from_numpy(np.array(X_test, dtype=np.float32)).to(device)
-y_test = torch.from_numpy(np.array(y_test, dtype=np.float32)).to(device)
+X_test = torch.from_numpy(np.array(X_test, dtype=np.float32)).float().to(device)
+y_test = torch.from_numpy(np.array(y_test, dtype=np.float32)).float().to(device)
 
 with torch.no_grad():
     y_pred = model(X_test)

@@ -99,8 +99,8 @@ for epoch in range(num_epochs):
     epoch_loss = 0
     with tqdm(total=total_windows, desc=f'Epoch {epoch+1}/{num_epochs}') as pbar:
         for X_batch, y_batch in data_generator(data, window_size, future_days):
-            X_batch = torch.from_numpy(X_batch).to(device)
-            y_batch = torch.from_numpy(y_batch).to(device)
+            X_batch = torch.from_numpy(np.array(X_batch, dtype=np.float32)).to(device)
+            y_batch = torch.from_numpy(np.array(y_batch, dtype=np.float32)).to(device)
 
             outputs = model(X_batch)
             loss = criterion(outputs, y_batch)

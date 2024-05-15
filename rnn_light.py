@@ -66,7 +66,8 @@ output_size = pred_length
 num_layers = 1
 batch_size = 32
 learning_rate = 0.001
-num_epochs = 10
+num_epochs = 50  # 增加训练轮数
+patience = 5  # 早停的耐心参数
 
 # 数据分割
 train_data, val_data = train_test_split(data, test_size=0.2, random_state=42)
@@ -85,6 +86,9 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # 训练模型
 print("Training model...")
+best_val_loss = float('inf')
+patience_counter = 0
+
 for epoch in range(num_epochs):
     model.train()
     epoch_loss = 0
@@ -118,7 +122,19 @@ for epoch in range(num_epochs):
     mae = mean_absolute_error(all_targets, all_outputs)
     print(f"Validation Loss: {val_loss}, MSE: {mse}, MAE: {mae}")
 
-# 保存模型
-model_path = './credit_score_rnn_model.pth'
+    # 早停策略
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        patience_counter = 0
+        # 保存最优模型
+        torch.save(model.state_dict(), './best_credit_score_rnn_model.pth')
+    else:
+        patience_counter += 1
+        if patience_counter >= patience:
+            print(f"Early stopping at epoch {epoch+1}")
+            break
+
+# 保存最终模型
+model_path = './final_credit_score_rnn_model.pth'
 torch.save(model.state_dict(), model_path)
 print(f"Model saved to {model_path}")

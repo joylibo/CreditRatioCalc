@@ -5,7 +5,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-import os
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 # 数据集类
 class CreditScoreDataset(Dataset):
@@ -26,6 +27,16 @@ class CreditScoreDataset(Dataset):
         seq_data = resident_data.iloc[-self.seq_length-self.pred_length:-self.pred_length][['credit_score', 'service_score', 'ability_score', 'evaluation_duration', 'party_act_duration', 'pay_amount']].values
         target_data = resident_data.iloc[-self.pred_length:]['credit_score'].values
 
+        # 确保序列长度一致
+        if len(seq_data) < self.seq_length:
+            pad_length = self.seq_length - len(seq_data)
+            seq_data = np.pad(seq_data, ((pad_length, 0), (0, 0)), 'constant', constant_values=0)
+        
+        # 确保目标长度一致
+        if len(target_data) < self.pred_length:
+            pad_length = self.pred_length - len(target_data)
+            target_data = np.pad(target_data, (0, pad_length), 'constant', constant_values=0)
+        
         return torch.tensor(seq_data, dtype=torch.float32), torch.tensor(target_data, dtype=torch.float32)
 
 # RNN模型
@@ -57,9 +68,14 @@ batch_size = 32
 learning_rate = 0.001
 num_epochs = 10
 
-# 创建数据集和数据加载器
-dataset = CreditScoreDataset(data, seq_length, pred_length)
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+# 数据分割
+train_data, val_data = train_test_split(data, test_size=0.2, random_state=42)
+
+# 创建训练集和验证集的数据加载器
+train_dataset = CreditScoreDataset(train_data, seq_length, pred_length)
+val_dataset = CreditScoreDataset(val_data, seq_length, pred_length)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 # 初始化模型、损失函数和优化器
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -72,7 +88,7 @@ print("Training model...")
 for epoch in range(num_epochs):
     model.train()
     epoch_loss = 0
-    for inputs, targets in tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs}"):
+    for inputs, targets in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}"):
         inputs, targets = inputs.to(device), targets.to(device)
         outputs = model(inputs)
         loss = criterion(outputs, targets)
@@ -80,7 +96,27 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
         epoch_loss += loss.item()
-    print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss/len(dataloader)}")
+    print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss/len(train_loader)}")
+    
+    # 验证模型
+    model.eval()
+    val_loss = 0
+    all_targets = []
+    all_outputs = []
+    with torch.no_grad():
+        for inputs, targets in val_loader:
+            inputs, targets = inputs.to(device), targets.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            val_loss += loss.item()
+            all_targets.append(targets.cpu().numpy())
+            all_outputs.append(outputs.cpu().numpy())
+    val_loss /= len(val_loader)
+    all_targets = np.concatenate(all_targets)
+    all_outputs = np.concatenate(all_outputs)
+    mse = mean_squared_error(all_targets, all_outputs)
+    mae = mean_absolute_error(all_targets, all_outputs)
+    print(f"Validation Loss: {val_loss}, MSE: {mse}, MAE: {mae}")
 
 # 保存模型
 model_path = './credit_score_rnn_model.pth'

@@ -64,6 +64,15 @@ model = LSTMModel().to(device)
 model.load_state_dict(torch.load(model_path))
 
 
+# 清空数据库中的ResidentCreditTrendModel
+def clear_database():
+    with Session(engine) as session:
+        statement = select(ResidentCreditTrendModel)
+        results = session.exec(statement).all()
+        for result in results:
+            session.delete(result)
+        session.commit()
+
 # 通过引入的ResidentCreditTrendModel类，把future_scores数据写入数据库
 
 def post_future_scores(resident_id, primary_id, account_id, future_scores):
@@ -99,6 +108,7 @@ def get_all_primary_ids(resident_id):
 
 
 if __name__ == '__main__':
+    clear_database() # 每一次执行都先清空预测表
     account_id = 2
     all_resident_ids = get_all_resident_ids()
     for resident_id in tqdm(all_resident_ids):

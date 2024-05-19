@@ -1,97 +1,148 @@
 import pandas as pd
-import lightgbm as lgb
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader, Subset
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from tqdm import tqdm
 
+# 1. 加载并预处理数据
+print("Loading and preprocessing data...")
 
-print("lgb版本：" + lgb.__version__)
+file_path = './历史行为与信用数据.xlsx'
 
-# 读取数据
-print('读取数据')
-data = pd.read_excel('/Users/libo/Downloads/历史信用及行为数据.xlsx')
-data = data.dropna(subset=['credit_score'])  # 删除目标变量为空的行
-print('done')
+data = pd.read_excel(file_path)
+data2 = pd.read_excel(file_path, sheet_name='Sheet2')
+data3 = pd.read_excel(file_path, sheet_name='Sheet3')
+data = pd.concat([data, data2, data3], ignore_index=True)
 
-# 分离数值型和非数值型特征
-print('分离数值型和非数值型特征')
-numeric_cols = data.select_dtypes(include=['float64', 'int64']).columns
-non_numeric_cols = data.select_dtypes(exclude=['float64', 'int64']).columns
-print('done')
+print(f"数据集总共有 {len(data)} 行")
 
-# 填充数值型特征的空值
-print('填充数值型特征的空值')
-data[numeric_cols] = data[numeric_cols].fillna(data[numeric_cols].mean())
-print('done')
+# 确保日期字段是日期类型
+data['record_date'] = pd.to_datetime(data['record_date'])
 
-# 填充非数值型特征的空值
-print('填充非数值型特征的空值')
-for col in tqdm(non_numeric_cols, desc='Processing data'):
-    data[col] = data[col].fillna(data[col].mode()[0])
-print('done')
+# 按照 resident_id, primary_id, record_date 排序
+data.sort_values(by=['resident_id', 'primary_id', 'record_date'], inplace=True)
 
-# 对文本类型的特征进行编码
-print('对文本类型的特征进行编码')
-cat_cols = ['party_mark_type', 'key_desc', 'pay_status']
-data = pd.get_dummies(data, columns=cat_cols)
-print('done')
+# 2. 构建数据集
+class CreditScoreDataset(Dataset):
+    def __init__(self, data, input_days=100, output_days=30):
+        self.data = data
+        self.input_days = input_days
+        self.output_days = output_days
+        self.residents = data['resident_id'].unique()
+        self.primary_ids = data['primary_id'].unique()
+        self.sequence_data = self.create_sequences()
 
-# 按resident_id和record_date排序
-print('按resident_id和record_date排序')
-data = data.sort_values(by=['resident_id', 'record_date'])
-print('done')
+    def create_sequences(self):
+        sequences = []
+        for resident in self.residents:
+            for primary_id in self.primary_ids:
+                resident_data = self.data[(self.data['resident_id'] == resident) & (self.data['primary_id'] == primary_id)]
+                if len(resident_data) >= self.input_days + self.output_days:
+                    for start in range(len(resident_data) - self.input_days - self.output_days + 1):
+                        input_seq = resident_data.iloc[start:start + self.input_days]['credit_score'].values
+                        output_seq = resident_data.iloc[start + self.input_days:start + self.input_days + self.output_days]['credit_score'].values
+                        sequences.append((input_seq, output_seq))
+        return sequences
 
-# 构造滑动窗口数据
-print('构造滑动窗口数据')
-X, y = [], []
-window_size = 100
-future_days = 30
-for _, group in tqdm(data.groupby('resident_id'), desc='Processing data'):
-    for i in range(window_size, len(group) - future_days + 1):
-        X.append(group.iloc[i-window_size:i, 2:].values.reshape(-1))
-        y.append(group.iloc[i:i+future_days, 2].values.flatten())
-print('done')
+    def __len__(self):
+        return len(self.sequence_data)
 
-# 划分训练集和测试集
-print('划分训练集和测试集')
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-print('done')
+    def __getitem__(self, idx):
+        input_seq, output_seq = self.sequence_data[idx]
+        return torch.tensor(input_seq, dtype=torch.float32), torch.tensor(output_seq, dtype=torch.float32)
 
-# 创建LightGBM数据集
-print('创建LightGBM数据集')
-train_data = lgb.Dataset(X_train, label=y_train)
-test_data = lgb.Dataset(X_test, label=y_test, reference=train_data)
-print('done')
+input_days = 100
+output_days = 30
+dataset = CreditScoreDataset(data, input_days=input_days, output_days=output_days)
 
-# 设置参数
-params = {
-    'objective': 'regression',
-    'metric': 'rmse',
-    'boosting_type': 'gbdt',
-    'num_leaves': 31,
-    'learning_rate': 0.05,
-    'feature_fraction': 0.9
-}
+# 数据分割：80%训练集，20%验证集
+train_size = int(0.8 * len(dataset))
+train_dataset = Subset(dataset, range(train_size))
+val_dataset = Subset(dataset, range(train_size, len(dataset)))
 
-# 训练模型
-print('训练模型')
-gbm = lgb.train(params,
-                train_data,
-                num_boost_round=2000,
-                valid_sets=[train_data, test_data],
-                valid_names=['train', 'valid'],
-                early_stopping_rounds=100,
-                verbose_eval=10)  # 每10轮输出一次信息
-print('done')
+train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=False)
+val_dataloader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
-# 模型评估
-print('模型评估')
-y_pred = gbm.predict(X_test, num_iteration=gbm.best_iteration)
-rmse = mean_squared_error(y_test, y_pred, squared=False)
-print(f'RMSE: {rmse}')
-print('done')
+# 3. 定义模型
+class LSTMModel(nn.Module):
+    def __init__(self, input_size=1, hidden_size=50, output_size=output_days, num_layers=2):
+        super(LSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size * input_days, output_size)
 
-# 保存模型
-print('保存模型')
-gbm.save_model('credit_score_model.txt')
-print('done')
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        out, _ = self.lstm(x, (h0, c0))
+        out = out.reshape(out.size(0), -1)
+        out = self.fc(out)
+        return out
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = LSTMModel().to(device)
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# 4. 训练模型
+num_epochs = 100
+best_val_loss = float('inf')
+patience = 10
+patience_counter = 0
+
+for epoch in range(num_epochs):
+    model.train()
+    epoch_loss = 0
+    for inputs, targets in tqdm(train_dataloader, desc=f'Epoch {epoch + 1}/{num_epochs}'):
+        inputs, targets = inputs.unsqueeze(-1).to(device), targets.to(device)
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        epoch_loss += loss.item()
+
+    avg_train_loss = epoch_loss / len(train_dataloader)
+
+    # 验证模型
+    model.eval()
+    val_loss = 0
+    all_targets = []
+    all_predictions = []
+    with torch.no_grad():
+        for inputs, targets in val_dataloader:
+            inputs, targets = inputs.unsqueeze(-1).to(device), targets.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            val_loss += loss.item()
+            all_targets.append(targets.cpu().numpy())
+            all_predictions.append(outputs.cpu().numpy())
+
+    avg_val_loss = val_loss / len(val_dataloader)
+    all_targets = np.concatenate(all_targets, axis=0)
+    all_predictions = np.concatenate(all_predictions, axis=0)
+    
+    mse = mean_squared_error(all_targets, all_predictions)
+    mae = mean_absolute_error(all_targets, all_predictions)
+    r2 = r2_score(all_targets, all_predictions)
+    mape = np.mean(np.abs((all_targets - all_predictions) / all_targets)) * 100
+
+    print(f'Epoch {epoch + 1}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, MSE: {mse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}, MAPE: {mape:.4f}%')
+
+    # 早停机制
+    if avg_val_loss < best_val_loss:
+        best_val_loss = avg_val_loss
+        patience_counter = 0
+        torch.save(model.state_dict(), 'best_credit_score_lstm_model.pth')
+        print('Best model saved.')
+    else:
+        patience_counter += 1
+        if patience_counter >= patience:
+            print('Early stopping triggered.')
+            break
+
+print('Training complete.')

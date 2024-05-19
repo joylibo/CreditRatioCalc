@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 from sqlmodel import SQLModel, Field, Column, Integer, Float, String, Date, Text
 
@@ -241,3 +241,35 @@ class PartyMemberPaymentsModel(SQLModel, table=True):
     payment_date: date = Field(nullable=False)
     payment_amount: float = Field(nullable=False)
     payment_status: Optional[str] = Field(default=None)
+
+"""
+CREATE TABLE `resident_credit_trend_t` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `resident_id` int NOT NULL COMMENT '用户id',
+  `primary_id` int NOT NULL COMMENT '一级指标id',
+  `account_id` int NOT NULL COMMENT '账户id',
+  `score` decimal(10,2) NOT NULL COMMENT '预测分数',
+  `create_time` datetime DEFAULT NULL,
+  `update_time` datetime NOT NULL,
+  `day` date NOT NULL COMMENT '预测日期',
+  `current_score` decimal(10,2) DEFAULT NULL COMMENT '当前信用分数',
+  `reason` varchar(11) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '分数变动原因',
+  PRIMARY KEY (`id`,`resident_id`) USING BTREE,
+  KEY `primary_id` (`primary_id`) USING BTREE,
+  KEY `account_id` (`account_id`) USING BTREE,
+  KEY `day` (`day`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='个人信用预测记录表'
+"""
+# 定义模型类 居民信用评分预测表
+class ResidentCreditTrendModel(SQLModel, table=True):
+    __tablename__ = "resident_credit_trend_t"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    resident_id: int = Field(primary_key=True)
+    primary_id: int
+    account_id: int
+    score: Optional[float] = Field(default=None)
+    create_time: Optional[datetime] = Field(default=None)
+    update_time: datetime = Field(..., nullable=False)
+    day: date = Field(nullable=False)
+    current_score: Optional[float] = Field(default=None)
+    reason: Optional[str]

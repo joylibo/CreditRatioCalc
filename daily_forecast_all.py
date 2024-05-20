@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import torch
 import torch.nn as nn
 from sqlmodel import Session, select
@@ -7,9 +6,8 @@ from app.database.database import engine
 from datetime import datetime, timedelta
 from app.models.resident_credit_score import ResidentCreditScore, ResidentCreditTrendModel
 from tqdm import tqdm
-
-# 定义SQLModel模型
-from sqlmodel import SQLModel
+import sys
+import os
 
 # LSTM模型定义
 class LSTMModel(nn.Module):
@@ -53,9 +51,7 @@ def predict_future_scores(model, input_scores):
         output = model(input_tensor)
     return output.cpu().numpy().flatten()
 
-# 配置
-# resident_id = 25313  # 替换为实际的resident_id
-# primary_id = 1     # 替换为实际的primary_id
+# 配置模型路径
 model_path = 'best_credit_score_lstm_model.pth'
 
 # 加载模型
@@ -64,13 +60,24 @@ model = LSTMModel().to(device)
 model.load_state_dict(torch.load(model_path))
 
 
-# 清空数据库中的ResidentCreditTrendModel
+# Deprecation Warning: 清空数据库中的ResidentCreditTrendModel
 def clear_database():
     with Session(engine) as session:
         statement = select(ResidentCreditTrendModel)
         results = session.exec(statement).all()
         for result in results:
             session.delete(result)
+        session.commit()
+
+# 清空指定resident_id和primary_id的预测数据
+def clear_resident_data(resident_id, primary_id):
+    with Session(engine) as session:
+        delete_statement = (
+            ResidentCreditTrendModel.__table__.delete()
+            .where(ResidentCreditTrendModel.resident_id == resident_id)
+            .where(ResidentCreditTrendModel.primary_id == primary_id)
+        )
+        session.exec(delete_statement)
         session.commit()
 
 # 通过引入的ResidentCreditTrendModel类，把future_scores数据写入数据库
@@ -106,19 +113,22 @@ def get_all_primary_ids(resident_id):
         results = session.exec(statement).all()
     return [result for result in results]
 
+def use_tqdm():
+    # 检查是否在终端运行
+    return os.isatty(sys.stdout.fileno())
 
 if __name__ == '__main__':
-    clear_database() # 每一次执行都先清空预测表
     account_id = 2
     all_resident_ids = get_all_resident_ids()
-    for resident_id in tqdm(all_resident_ids):
+    tqdm_func = tqdm if use_tqdm() else lambda x: x  # 如果在终端运行则使用tqdm，否则使用原始迭代器
+    for resident_id in tqdm_func(all_resident_ids):
         all_primary_ids = get_all_primary_ids(resident_id)
         for primary_id in all_primary_ids:
             recent_scores = get_recent_scores(resident_id, primary_id)
             if len(recent_scores) < 100:
                 print(f"Not enough data for prediction for resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}")
             else:
+                clear_resident_data(resident_id, primary_id)  # 清除旧数据
                 future_scores = predict_future_scores(model, recent_scores)
                 post_future_scores(resident_id, primary_id, account_id, future_scores)
-                
 

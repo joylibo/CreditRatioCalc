@@ -263,7 +263,7 @@ CREATE TABLE `resident_credit_trend_t` (
 # 定义模型类 居民信用评分预测表
 class ResidentCreditTrendModel(SQLModel, table=True):
     __tablename__ = "resident_credit_trend_t"
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: Optional[int] = Field(sa_column=Column(Integer, primary_key=True, autoincrement=True))
     resident_id: int = Field(primary_key=True)
     primary_id: int
     account_id: int

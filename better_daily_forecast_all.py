@@ -8,6 +8,7 @@ from app.models.resident_credit_score import ResidentCreditScore, ResidentCredit
 from tqdm import tqdm
 import sys
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # LSTM模型定义
 class LSTMModel(nn.Module):
@@ -59,16 +60,6 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = LSTMModel().to(device)
 model.load_state_dict(torch.load(model_path))
 
-
-# Deprecation Warning: 清空数据库中的ResidentCreditTrendModel
-def clear_database():
-    with Session(engine) as session:
-        statement = select(ResidentCreditTrendModel)
-        results = session.exec(statement).all()
-        for result in results:
-            session.delete(result)
-        session.commit()
-
 # 清空指定resident_id和primary_id的预测数据
 def clear_resident_data(resident_id, primary_id):
     with Session(engine) as session:
@@ -77,10 +68,10 @@ def clear_resident_data(resident_id, primary_id):
             .where(ResidentCreditTrendModel.resident_id == resident_id)
             .where(ResidentCreditTrendModel.primary_id == primary_id)
         )
-        session.exec(delete_statement)
+        session.execute(delete_statement)
         session.commit()
 
-# 通过引入的ResidentCreditTrendModel类，把future_scores数据写入数据库，批量写入
+# 批量写入未来预测分数
 def post_future_scores(resident_id, primary_id, account_id, future_scores):
     trends = []
     for i, score in enumerate(future_scores):
@@ -118,18 +109,29 @@ def use_tqdm():
     # 检查是否在终端运行
     return os.isatty(sys.stdout.fileno())
 
+# 处理单个resident_id的函数
+def process_resident(resident_id, account_id):
+    all_primary_ids = get_all_primary_ids(resident_id)
+    for primary_id in all_primary_ids:
+        recent_scores = get_recent_scores(resident_id, primary_id)
+        if len(recent_scores) < 100:
+            print(f"Not enough data for prediction for resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}")
+        else:
+            clear_resident_data(resident_id, primary_id)  # 清除旧数据
+            future_scores = predict_future_scores(model, recent_scores)
+            post_future_scores(resident_id, primary_id, account_id, future_scores)
+
 if __name__ == '__main__':
     account_id = 2
     all_resident_ids = get_all_resident_ids()
     tqdm_func = tqdm if use_tqdm() else lambda x: x  # 如果在终端运行则使用tqdm，否则使用原始迭代器
-    for resident_id in tqdm_func(all_resident_ids):
-        all_primary_ids = get_all_primary_ids(resident_id)
-        for primary_id in all_primary_ids:
-            recent_scores = get_recent_scores(resident_id, primary_id)
-            if len(recent_scores) < 100:
-                print(f"Not enough data for prediction for resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}")
-            else:
-                clear_resident_data(resident_id, primary_id)  # 清除旧数据
-                future_scores = predict_future_scores(model, recent_scores)
-                post_future_scores(resident_id, primary_id, account_id, future_scores)
 
+    # 使用ThreadPoolExecutor进行并行处理
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(process_resident, resident_id, account_id): resident_id for resident_id in tqdm_func(all_resident_ids)}
+        for future in as_completed(futures):
+            resident_id = futures[future]
+            try:
+                future.result()
+            except Exception as exc:
+                print(f'Resident ID {resident_id} generated an exception: {exc}')

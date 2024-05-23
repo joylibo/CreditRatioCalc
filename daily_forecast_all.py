@@ -10,6 +10,10 @@ from tqdm import tqdm
 import sys
 import os
 
+# 设置工作目录为脚本所在的目录
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_dir)
+
 # LSTM模型定义
 class LSTMModel(nn.Module):
     def __init__(self, input_size=1, hidden_size=50, output_size=30, num_layers=2):
@@ -53,7 +57,7 @@ def predict_future_scores(model, input_scores):
     return output.cpu().numpy().flatten()
 
 # 配置模型路径
-model_path = 'best_credit_score_lstm_model.pth'
+model_path = './best_credit_score_lstm_model.pth'
 
 # 加载模型
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

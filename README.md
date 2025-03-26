@@ -40,15 +40,23 @@ local_model_path = os.path.join(current_dir, '..', '..', 'bert-base-chinese')
 
 调试模式
 ```
+cd /home/libo/CreditRatioCalc
 uvicorn app.main:app --reload
 ```    
 
 生产模式
 ```
+cd /home/libo/CreditRatioCalc
 nohup uvicorn app.main:app &
 ```
 
 ## 程序停止命令
 ```
 pkill uvicorn
+```
+
+确保cron程序在`0 2 * * *`执行`daily_forecast_all.py`
+```
+$ crontab -l
+0 2 * * * /bin/bash -c "source /home/libo/miniconda3/bin/activate py3118 && nohup python /home/libo/CreditRatioCalc/daily_forecast_all.py" > /home/libo/CreditRatioCalc/daily_forecast_all.log  2>&1 &
 ```

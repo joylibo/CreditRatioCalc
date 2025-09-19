@@ -33,6 +33,18 @@ local_model_path = os.path.join(current_dir, '..', '..', 'bert-base-chinese')
 需要自行下载全部模型文件，由于比较大，git仓库中没有这些文件
 
 
+## 环境配置
+需要关注`app/config/credit_db_conf.py`文件中的配置,这个文件中保存了数据库的配置，所以没有放入git仓库，部署时候需要手动创建,示例
+```
+DATABASE_CONFIG = {
+    'username': 'xxxx',
+    'password': 'xxxx',
+    'hostname': 'xxx.xxx.xxx.xxx',
+    'database': 'xxxx',
+    'port': ***
+}
+```
+
 ## 测试你的环境是否满足项目运行要求
 
 
@@ -60,3 +72,7 @@ pkill uvicorn
 $ crontab -l
 0 2 * * * /bin/bash -c "source /home/libo/miniconda3/bin/activate py3118 && nohup python /home/libo/CreditRatioCalc/daily_forecast_all.py" > /home/libo/CreditRatioCalc/daily_forecast_all.log  2>&1 &
 ```
+
+
+## 定时任务：
+0 2 * * * /bin/bash -c "source /home/libo/miniconda3/bin/activate py3118 && nohup python /home/libo/CreditRatioCalc/daily_forecast_all.py" > /home/libo/CreditRatioCalc/daily_forecast_all.log  2>&1 &

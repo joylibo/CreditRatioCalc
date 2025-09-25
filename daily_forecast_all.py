@@ -48,6 +48,27 @@ def get_recent_scores(resident_id, primary_id, days=100):
     df.sort_values(by='day', inplace=True)
     return df['score'].values
 
+def get_recent_score_v2(resident_id, primary_id, days=100):
+    with Session(engine) as session:
+        statement = (
+            select(ResidentCreditScore.score, ResidentCreditScore.day, ResidentCreditScore.account_id)
+            .where(ResidentCreditScore.resident_id == resident_id)
+            .where(ResidentCreditScore.primary_id == primary_id)
+            .order_by(ResidentCreditScore.day.desc())
+            .limit(days)
+        )
+        results = session.exec(statement).all()
+
+    # 将数据转为DataFrame并按照日期排序
+    df = pd.DataFrame(results)
+    df['day'] = pd.to_datetime(df['day'])
+    df.sort_values(by='day', inplace=True)
+    
+    # 提取account_id（取第一个，假设所有记录的account_id相同）
+    account_id = df['account_id'].iloc[0] if not df.empty else None
+    
+    return df['score'].values, account_id
+
 def predict_future_scores(model, input_scores):
     input_tensor = torch.tensor(input_scores, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
     input_tensor = input_tensor.to(device)
@@ -130,7 +151,7 @@ if __name__ == '__main__':
     for resident_id in tqdm_func(all_resident_ids):
         all_primary_ids = get_all_primary_ids(resident_id)
         for primary_id in all_primary_ids:
-            recent_scores = get_recent_scores(resident_id, primary_id)
+            recent_scores, account_id = get_recent_score_v2(resident_id, primary_id)
             if len(recent_scores) < 100:
                 print(f"Not enough data for prediction for resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}")
             else:

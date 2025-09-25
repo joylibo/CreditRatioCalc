@@ -34,6 +34,7 @@ class ResidentCreditScore(SQLModel, table=True):
     __tablename__ = "resident_credit_score_t"
 
     id: int = Field(default=None, primary_key=True)
+    account_id: int = Field(nullable=False)
     primary_id: int = Field(nullable=False)
     day: Optional[date] = Field(default=None)
     score: Optional[float] = Field(default=None)

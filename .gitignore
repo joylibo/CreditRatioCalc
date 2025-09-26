@@ -11,3 +11,5 @@ __pycache__/
 app/config/*.py
 
 .DS_Store
+
+temp/*

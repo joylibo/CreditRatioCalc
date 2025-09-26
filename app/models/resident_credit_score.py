@@ -8,8 +8,6 @@ from sqlmodel import SQLModel, Field, Column, Integer, Float, String, Date, Text
 
 """
 # 1. 用户信用分记录表，记录了每个用户每一天的信用分，一年两百多万条数据，这有点大，慎重
-
-目前只有 account_id = 2 的5000个用户的数据
 用户的身份ID是 resident_id
 
 SHOW CREATE TABLE  resident_credit_score_t;
@@ -42,6 +40,48 @@ class ResidentCreditScore(SQLModel, table=True):
     reason: Optional[str] = Field(default=None)
     credit_assessment: Optional[str] = Field(default=None)
     last_score: Optional[float] = Field(default=None)
+
+#################################################################
+## 2025-09-26 新增
+## 用户信用记录新增了另一张表，与原来的表呈互补关系，并且两个表里的用户互不重叠，所以做单次预测不需要跨表
+
+"""
+CREATE TABLE `resident_credit_score` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `account_id` int unsigned NOT NULL COMMENT '账户id',
+  `primary_id` int NOT NULL COMMENT '一级指标id',
+  `create_time` datetime DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  `day` date DEFAULT NULL COMMENT '生成日期',
+  `score` decimal(10,2) DEFAULT NULL COMMENT '得分',
+  `resident_id` int unsigned NOT NULL COMMENT '居民主键id',
+  `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '变动原因',
+  `credit_assessment` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '信用风险评估',
+  `last_score` decimal(10,2) DEFAULT NULL COMMENT '上次得分',
+  PRIMARY KEY (`id`) USING BTREE,
+  KEY `scor_resident_id` (`account_id`) USING BTREE,
+  KEY `scor_sss_id` (`day`) USING BTREE,
+  KEY `scor_primary_id` (`primary_id`) USING BTREE,
+  KEY `scor_re_id` (`resident_id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=18516055 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='用户评分表'
+"""
+# 定义模型类 用户信用分（新增）
+class ResidentCreditScoreV2(SQLModel, table=True):
+    __tablename__ = "resident_credit_score"
+
+    id: int = Field(default=None, primary_key=True)
+    account_id: int = Field(nullable=False)
+    primary_id: int = Field(nullable=False)
+    day: Optional[date] = Field(default=None)
+    score: Optional[float] = Field(default=None)
+    resident_id: int = Field(nullable=False)
+    reason: Optional[str] = Field(default=None)
+    credit_assessment: Optional[str] = Field(default=None)
+    last_score: Optional[float] = Field(default=None)
+
+#################################################################
+
+
 
 
 """

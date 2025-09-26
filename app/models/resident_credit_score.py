@@ -66,7 +66,7 @@ CREATE TABLE `resident_credit_score` (
 ) ENGINE=InnoDB AUTO_INCREMENT=18516055 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='用户评分表'
 """
 # 定义模型类 用户信用分（新增）
-class ResidentCreditScoreV2(SQLModel, table=True):
+class ResidentCreditScorePlus(SQLModel, table=True):
     __tablename__ = "resident_credit_score"
 
     id: int = Field(default=None, primary_key=True)

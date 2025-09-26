@@ -5,7 +5,7 @@ import torch.nn as nn
 from sqlmodel import Session, select
 from app.database.database import engine
 from datetime import datetime, timedelta
-from app.models.resident_credit_score import ResidentCreditScore, ResidentCreditTrendModel
+from app.models.resident_credit_score import ResidentCreditScore, ResidentCreditScorePlus, ResidentCreditTrendModel
 from tqdm import tqdm
 import sys
 import os
@@ -48,13 +48,18 @@ def get_recent_scores(resident_id, primary_id, days=100):
     df.sort_values(by='day', inplace=True)
     return df['score'].values
 
-def get_recent_score_v2(resident_id, primary_id, days=100):
+
+
+def get_recent_score_v2(resident_id, table_model, primary_id, days=100):
+    if table_model is None:
+        return [], None
+
     with Session(engine) as session:
         statement = (
-            select(ResidentCreditScore.score, ResidentCreditScore.day, ResidentCreditScore.account_id)
-            .where(ResidentCreditScore.resident_id == resident_id)
-            .where(ResidentCreditScore.primary_id == primary_id)
-            .order_by(ResidentCreditScore.day.desc())
+            select(table_model.score, table_model.day, table_model.account_id)
+            .where(table_model.resident_id == resident_id)
+            .where(table_model.primary_id == primary_id)
+            .order_by(table_model.day.desc())
             .limit(days)
         )
         results = session.exec(statement).all()
@@ -63,10 +68,10 @@ def get_recent_score_v2(resident_id, primary_id, days=100):
     df = pd.DataFrame(results)
     df['day'] = pd.to_datetime(df['day'])
     df.sort_values(by='day', inplace=True)
-    
+
     # 提取account_id（取第一个，假设所有记录的account_id相同）
     account_id = df['account_id'].iloc[0] if not df.empty else None
-    
+
     return df['score'].values, account_id
 
 def predict_future_scores(model, input_scores):
@@ -127,16 +132,32 @@ def post_future_scores(resident_id, primary_id, account_id, future_scores):
         session.bulk_save_objects(trends)
         session.commit()
 
-# 获取全部的resident_id, 对于这些resident_id分别调用get_recent_scores函数获取100天的得分
+# 获取全部的resident_id，从两个表中获取所有唯一的居民ID及其对应的表
 def get_all_resident_ids():
     with Session(engine) as session:
-        statement = select(ResidentCreditScore.resident_id).distinct()
-        results = session.exec(statement).all()
-    return [result for result in results]
+        # 从原表获取
+        statement1 = select(ResidentCreditScore.resident_id).distinct()
+        results1 = session.exec(statement1).all()
 
-def get_all_primary_ids(resident_id):
+        # 从新表获取
+        statement2 = select(ResidentCreditScorePlus.resident_id).distinct()
+        results2 = session.exec(statement2).all()
+
+        # 创建居民到表的映射字典
+        resident_tables = {}
+        for rid in results1:
+            resident_tables[rid] = ResidentCreditScore
+        for rid in results2:
+            resident_tables[rid] = ResidentCreditScorePlus
+
+        return resident_tables
+
+def get_all_primary_ids(resident_id, table_model):
+    if table_model is None:
+        return []
+
     with Session(engine) as session:
-        statement = select(ResidentCreditScore.primary_id).where(ResidentCreditScore.resident_id == resident_id).distinct()
+        statement = select(table_model.primary_id).where(table_model.resident_id == resident_id).distinct()
         results = session.exec(statement).all()
     return [result for result in results]
 
@@ -145,17 +166,26 @@ def use_tqdm():
     return os.isatty(sys.stdout.fileno())
 
 if __name__ == '__main__':
-    account_id = 2
-    all_resident_ids = get_all_resident_ids()
+    print("开始批量预测信用分数...")
+    print("从两个表中获取所有居民ID...")
+    resident_tables = get_all_resident_ids()
+    print(f"共找到 {len(resident_tables)} 个居民")
+
     tqdm_func = tqdm if use_tqdm() else lambda x: x  # 如果在终端运行则使用tqdm，否则使用原始迭代器
-    for resident_id in tqdm_func(all_resident_ids):
-        all_primary_ids = get_all_primary_ids(resident_id)
+    processed_count = 0
+    skipped_count = 0
+
+    for resident_id, table_model in tqdm_func(resident_tables.items()):
+        all_primary_ids = get_all_primary_ids(resident_id, table_model)
         for primary_id in all_primary_ids:
-            recent_scores, account_id = get_recent_score_v2(resident_id, primary_id)
+            recent_scores, account_id = get_recent_score_v2(resident_id, table_model, primary_id)
             if len(recent_scores) < 100:
-                print(f"Not enough data for prediction for resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}")
+                print(f"数据不足: resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}, 数据点数={len(recent_scores)}")
+                skipped_count += 1
             else:
                 clear_resident_data(resident_id, primary_id)  # 清除旧数据
                 future_scores = predict_future_scores(model, recent_scores)
                 post_future_scores(resident_id, primary_id, account_id, future_scores)
+                processed_count += 1
 
+    print(f"预测完成! 成功处理: {processed_count} 组数据, 跳过: {skipped_count} 组数据")

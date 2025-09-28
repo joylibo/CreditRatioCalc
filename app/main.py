@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from app.routes import formpage, mock, similarity, people
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 app = FastAPI()
 
@@ -25,6 +29,3 @@ if __name__ == "__main__":
 #         query = select(ResidentCreditScore).limit(5)
 #         results = session.exec(query)
 #         return results.all()
-
-
-

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信用指标转换</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: #fff;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            margin: 0 0 10px 0;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .section {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+        }
+
+        .middle-section {
+            flex: 0.5; /* 中间操作区占用更少空间 */
+            text-align: center;
+        }
+
+        .section h2 {
+            color: #333;
+            font-size: 16px;
+            margin: 0 0 15px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .text-block {
+            background: #f9f9f9;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .text-block h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+        }
+
+        .data-table th {
+            background: #f5f5f5;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .data-table tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        .middle-section {
+            text-align: center;
+        }
+
+        .conversion-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .conversion-button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 3px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .conversion-button:hover {
+            background: #357abd;
+        }
+
+        .conversion-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .status-indicator {
+            display: none;
+            padding: 8px;
+            margin: 15px 0;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading-text {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            padding: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>信用指标转换</h1>
+        <p>依据不同场景进行信用指标的智能转换</p>
+    </div>
+
+    <div class="container">
+        <!-- 左侧：平安社区指标 -->
+                        <div class="section">
+            <h2>🏠 平安社区指标</h2>
+
+            <div class="text-block">
+                <h3>当前指标概述</h3>
+                <p id="original-description">正在加载数据...</p>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>指标类型</th>
+                        <th>二级指标</th>
+                        <th>二级指标描述词</th>
+                        <th>参考权重</th>
+                    </tr>
+                </thead>
+                <tbody id="original-table-body">
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #666;">
+                            数据加载中...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 中间：转换按钮 -->
+        <div class="section middle-section">
+            <h2>🔄 指标转换工具</h2>
+            <p>选择目标场景进行指标转换</p>
+
+            <div class="conversion-buttons">
+                <button class="conversion-button" onclick="convertToCreditParty()">
+                    📋 转换为信用党建指标
+                </button>
+                <button class="conversion-button" onclick="convertToPension()">
+                    👴 转换为社区养老指标
+                </button>
+                <button class="conversion-button" onclick="convertToCreditPunish()">
+                    ⚖️ 转换为综合性失信联合惩戒指标
+                </button>
+                <button class="conversion-button" onclick="convertToPublicService()">
+                    🏆 转换为公共服务守信主体激励
+                </button>
+            </div>
+
+            <div id="conversion-status" class="status-indicator" style="display: none;"></div>
+
+            <div class="text-block">
+                <h3>转换说明</h3>
+                <p>指标转换基于场景特征和规则进行智能映射。转换时会考虑不同场景的权重系数和评估标准，确保转换结果的合理性和准确性。</p>
+            </div>
+        </div>
+
+        <!-- 右侧：显示转换后的指标 -->
+        <div class="section">
+            <h2>📊 转换后指标</h2>
+
+            <div class="text-block">
+                <h3>目标场景指标</h3>
+                <p id="target-description">请选择转换按钮查看目标场景的指标数据</p>
+            </div>
+
+            <table class="data-table" id="converted-table">
+                <thead>
+                    <tr>
+                        <th>指标类型</th>
+                        <th>二级指标</th>
+                        <th>二级指标描述词</th>
+                        <th>参考权重</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #666;">
+                            未进行转换，请选择转换选项
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 数据加载状态
+        let conversionData = {};
+        let dataLoaded = false;
+
+        function showStatus(message, isSuccess = true) {
+            const statusDiv = document.getElementById('conversion-status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-indicator ${isSuccess ? 'status-success' : 'status-error'}`;
+            statusDiv.style.display = 'block';
+
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        async function convertIndicators(targetScene) {
+            if (!dataLoaded) {
+                showStatus('数据正在加载，请稍后再试', false);
+                return;
+            }
+
+            // 显示载中状态，清空原有内容
+            const tbody = document.querySelector('#converted-table tbody');
+            tbody.innerHTML = '<tr><td colspan="4" class="loading-text">正在转换，请稍候...</td></tr>';
+
+            // 清空右侧描述区域
+            document.getElementById('target-description').textContent = '';
+
+            // 获取场景标题
+            const sceneTitles = {
+                creditParty: '信用党建指标',
+                pension: '社区养老指标',
+                creditPunish: '综合性失信联合惩戒指标',
+                publicService: '公共服务守信主体激励'
+            };
+
+            // 更新右侧标题
+            const rightSection = document.querySelector('.section:nth-child(3) h2');
+            rightSection.textContent = `📊 ${sceneTitles[targetScene]}`;
+
+            const originalData = conversionData.original?.data || [];
+
+            try {
+                // 调用转换API
+                const response = await fetch('/convert-credit-indicators', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        target_scene: targetScene,
+                        indicators_data: originalData
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.error) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #721c24;">转换失败，请稍后再试</td></tr>';
+                    showStatus('转换失败: ' + result.error, false);
+                    return;
+                }
+
+                // 更新描述
+                document.getElementById('target-description').textContent = result.description;
+
+                // 获取转换后指标的参考权重
+                const targetWeights = await getTargetWeights(targetScene, result.converted_data);
+
+                // 更新表格
+                tbody.innerHTML = '';
+
+                result.converted_data.forEach((row, index) => {
+                    const tr = document.createElement('tr');
+                    // 添加前三个字段
+                    row.forEach((cell, cellIndex) => {
+                        const td = document.createElement('td');
+                        td.textContent = cell;
+
+                        // 为指标类型列添加颜色
+                        if (cellIndex === 0) { // 指标类型列
+                            if (cell === '基本数据') {
+                                td.style.background = '#e8f5e8';
+                                td.style.fontWeight = 'bold';
+                                td.style.color = '#2c3e50';
+                                td.style.borderRadius = '3px';
+                            } else if (cell === '行为数据') {
+                                td.style.background = '#e8f4fd';
+                                td.style.fontWeight = 'bold';
+                                td.style.color = '#2c3e50';
+                                td.style.borderRadius = '3px';
+                            }
+                        }
+
+                        tr.appendChild(td);
+                    });
+
+                    // 添加第四个字段：参考权重
+                    const weightTd = document.createElement('td');
+                    const weight = targetWeights[index] || 0.5;
+                    weightTd.textContent = (weight * 100).toFixed(1) + '%';
+                    tr.appendChild(weightTd);
+
+                    tbody.appendChild(tr);
+                });
+
+                showStatus(`成功转换为${sceneTitles[targetScene]}`, true);
+
+            } catch (error) {
+                console.error('转换请求失败:', error);
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #721c24;">转换失败，请稍后再试</td></tr>';
+                showStatus('转换请求失败，请稍后再试', false);
+            }
+        }
+
+        function convertToCreditParty() {
+            convertIndicators('creditParty');
+        }
+
+        function convertToPension() {
+            convertIndicators('pension');
+        }
+
+        function convertToCreditPunish() {
+            convertIndicators('creditPunish');
+        }
+
+        function convertToPublicService() {
+            convertIndicators('publicService');
+        }
+
+        // 获取目标场景的参考权重
+        async function getTargetWeights(targetScene, convertedData) {
+            const sceneDescriptions = {
+                creditParty: "信用党建是在党的组织和管理中，系统地引入信用评价机制，通过建立完善的信用记录和评估体系，来加强党员和党组织的自律性和公信力。这种做法旨在通过透明公正的评价标准，促进党内外部的责任和诚信行为，提升党的形象和影响力，同时也通过持续的监督和评估，确保党的政策执行和组织活动的高效性和公正性。",
+                pension: "社区养老是一种将养老服务融入居民日常生活环境的服务模式，它依托社区资源，为老年人提供便捷、贴心的养老服务。这种模式强调在老年人熟悉的居住环境中提供生活照料、医疗保健、精神慰藉等一体化服务，通过充分利用社区内的设施、人力资源以及各类社会组织的参与，不仅能有效减轻家庭养老的压力，还有助于老年人保持社会联系和情感交流，提高他们的生活质量和幸福感。本社区养老的指标评价的对象主要是养老服务人员。",
+                creditPunish: "综合性失信联合惩戒用于评估重点群体或社会主体在公共生活各领域的信用表现，通过整合多部门、多场景的失信信息，对违规、失信行为实施联合惩戒，从而促进社会信用体系完善和公共秩序提升。该指标覆盖交通出行、公共文化、社会保障、公共服务及城市管理等关键领域，体现信用约束的综合性、跨领域和实时性。",
+                publicService: "公共服务守信主体激励用于评估社会主体在公共服务各领域的守信行为，通过对遵守法规、规范行为、积极参与公共事务和履行社会责任的个人或组织给予激励，促进社会信用体系建设和公共服务质量提升。该指标覆盖交通出行、文化服务、社会保障、公共安全、生态环保等关键领域，体现守信激励的全面性、可操作性和正向引导作用。"
+            };
+
+            const referenceText = sceneDescriptions[targetScene];
+            const textsToCompare = convertedData.map(row => {
+                const [indicatorType, secondIndicator, secondIndicatorDesc] = row;
+                return `${secondIndicator} ${secondIndicatorDesc}`;
+            });
+
+            try {
+                const response = await fetch('/get_bulk_similarity/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        reference_text: referenceText,
+                        texts_to_compare: textsToCompare,
+                        weights: {
+                            cosine: 1,
+                            euclidean: 0,
+                            manhattan: 0
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error('获取目标权重失败:', response.status);
+                    // 返回默认权重
+                    return convertedData.map(() => 0.5);
+                }
+
+                const result = await response.json();
+                return result.map(item => item.rates);
+
+            } catch (error) {
+                console.error('获取目标权重请求失败:', error);
+                // 返回默认权重
+                return convertedData.map(() => 0.5);
+            }
+        }
+
+        // 获取参考权重
+        async function getReferenceWeights() {
+            const originalData = conversionData.original;
+            if (!originalData) {
+                return [];
+            }
+
+            const referenceText = originalData.description;
+            const textsToCompare = originalData.data.map(row => {
+                const [indicatorType, secondIndicator, secondIndicatorDesc] = row;
+                return `${secondIndicator} ${secondIndicatorDesc}`;
+            });
+
+            try {
+                const response = await fetch('/get_bulk_similarity/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        reference_text: referenceText,
+                        texts_to_compare: textsToCompare,
+                        weights: {
+                            cosine: 1,
+                            euclidean: 0,
+                            manhattan: 0
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error('获取参考权重失败:', response.status);
+                    // 返回默认权重
+                    return originalData.data.map(() => 0.5);
+                }
+
+                const result = await response.json();
+                return result.map(item => item.rates);
+
+            } catch (error) {
+                console.error('获取参考权重请求失败:', error);
+                // 返回默认权重
+                return originalData.data.map(() => 0.5);
+            }
+        }
+
+        // 填充原始指标表格
+        async function fillOriginalTable() {
+            const originalData = conversionData.original;
+            if (!originalData) {
+                console.error('原始数据未找到');
+                return;
+            }
+
+            // 填充描述
+            document.getElementById('original-description').textContent = originalData.description;
+
+            // 获取参考权重
+            const referenceWeights = await getReferenceWeights();
+
+            // 填充表格
+            const tbody = document.getElementById('original-table-body');
+            tbody.innerHTML = '';
+
+            originalData.data.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                // 添加前三个字段
+                row.forEach((cell, cellIndex) => {
+                    const td = document.createElement('td');
+                    td.textContent = cell;
+
+                    // 为指标类型列添加颜色
+                    if (cellIndex === 0) { // 指标类型列
+                        if (cell === '基本数据') {
+                            td.style.background = '#e8f5e8';
+                            td.style.fontWeight = 'bold';
+                            td.style.color = '#2c3e50';
+                            td.style.borderRadius = '3px';
+                        } else if (cell === '行为数据') {
+                            td.style.background = '#e8f4fd';
+                            td.style.fontWeight = 'bold';
+                            td.style.color = '#2c3e50';
+                            td.style.borderRadius = '3px';
+                        }
+                    }
+
+                    tr.appendChild(td);
+                });
+
+                // 添加第四个字段：参考权重
+                const weightTd = document.createElement('td');
+                const weight = referenceWeights[index] || 0.5;
+                weightTd.textContent = (weight * 100).toFixed(1) + '%';
+                tr.appendChild(weightTd);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 加载数据
+        async function loadConversionData() {
+            try {
+                const response = await fetch('/credit-conversion-data.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                conversionData = await response.json();
+                dataLoaded = true;
+                console.log('数据加载成功');
+
+                // 填充原始表格
+                fillOriginalTable();
+
+            } catch (error) {
+                console.error('数据加载失败:', error);
+                showStatus('数据加载失败，请刷新页面重试', false);
+
+                // 显示错误消息
+                document.getElementById('original-description').textContent = '数据加载失败';
+                document.getElementById('original-table-body').innerHTML =
+                    '<tr><td colspan="4" style="text-align: center; color: #dc3545;">数据加载失败，请刷新页面重试</td></tr>';
+            }
+        }
+
+        // 添加一些视觉效果
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载数据
+            loadConversionData();
+
+            // 为按钮添加更强的交互动画
+            const buttons = document.querySelectorAll('.conversion-button');
+            buttons.forEach(button => {
+                button.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-3px) scale(1.02)';
+                });
+
+                button.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

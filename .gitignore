@@ -10,6 +10,9 @@ __pycache__/
 
 app/config/*.py
 
+.env
+.env.local
+
 .DS_Store
 
 temp/*

@@ -128,38 +128,27 @@ def post_future_scores(resident_id, primary_id, account_id, future_scores):
         )
         trends.append(trend)
 
+
     with Session(engine) as session:
         session.bulk_save_objects(trends)
         session.commit()
 
-# 获取全部的resident_id，从两个表中获取所有唯一的居民ID及其对应的表
-def get_all_resident_ids():
+def get_all_combinations():
+    combinations = {}
     with Session(engine) as session:
-        # 从原表获取
-        statement1 = select(ResidentCreditScore.resident_id).distinct()
+        # 从ResidentCreditScore表获取
+        statement1 = select(ResidentCreditScore.resident_id, ResidentCreditScore.primary_id).distinct()
         results1 = session.exec(statement1).all()
+        for resident_id, primary_id in results1:
+            combinations[(resident_id, primary_id)] = ResidentCreditScore
 
-        # 从新表获取
-        statement2 = select(ResidentCreditScorePlus.resident_id).distinct()
+        # 从ResidentCreditScorePlus表获取，如果有冲突，认为优先使用Plus表
+        statement2 = select(ResidentCreditScorePlus.resident_id, ResidentCreditScorePlus.primary_id).distinct()
         results2 = session.exec(statement2).all()
+        for resident_id, primary_id in results2:
+            combinations[(resident_id, primary_id)] = ResidentCreditScorePlus
 
-        # 创建居民到表的映射字典
-        resident_tables = {}
-        for rid in results1:
-            resident_tables[rid] = ResidentCreditScore
-        for rid in results2:
-            resident_tables[rid] = ResidentCreditScorePlus
-
-        return resident_tables
-
-def get_all_primary_ids(resident_id, table_model):
-    if table_model is None:
-        return []
-
-    with Session(engine) as session:
-        statement = select(table_model.primary_id).where(table_model.resident_id == resident_id).distinct()
-        results = session.exec(statement).all()
-    return [result for result in results]
+    return combinations
 
 def use_tqdm():
     # 检查是否在终端运行
@@ -167,25 +156,23 @@ def use_tqdm():
 
 if __name__ == '__main__':
     print("开始批量预测信用分数...")
-    print("从两个表中获取所有居民ID...")
-    resident_tables = get_all_resident_ids()
-    print(f"共找到 {len(resident_tables)} 个居民")
+    print("从两个表中获取所有居民ID和primary_id组合...")
+    combinations = get_all_combinations()
+    print(f"共找到 {len(combinations)} 个居民-primary_id组合")
 
     tqdm_func = tqdm if use_tqdm() else lambda x: x  # 如果在终端运行则使用tqdm，否则使用原始迭代器
     processed_count = 0
     skipped_count = 0
 
-    for resident_id, table_model in tqdm_func(resident_tables.items()):
-        all_primary_ids = get_all_primary_ids(resident_id, table_model)
-        for primary_id in all_primary_ids:
-            recent_scores, account_id = get_recent_score_v2(resident_id, table_model, primary_id)
-            if len(recent_scores) < 100:
-                print(f"数据不足: resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}, 数据点数={len(recent_scores)}")
-                skipped_count += 1
-            else:
-                clear_resident_data(resident_id, primary_id)  # 清除旧数据
-                future_scores = predict_future_scores(model, recent_scores)
-                post_future_scores(resident_id, primary_id, account_id, future_scores)
-                processed_count += 1
+    for (resident_id, primary_id), table_model in tqdm_func(combinations.items()):
+        recent_scores, account_id = get_recent_score_v2(resident_id, table_model, primary_id)
+        if len(recent_scores) < 100:
+            print(f"数据不足: resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}, 数据点数={len(recent_scores)}")
+            skipped_count += 1
+        else:
+            clear_resident_data(resident_id, primary_id)  # 清除旧数据
+            future_scores = predict_future_scores(model, recent_scores)
+            post_future_scores(resident_id, primary_id, account_id, future_scores)
+            processed_count += 1
 
     print(f"预测完成! 成功处理: {processed_count} 组数据, 跳过: {skipped_count} 组数据")

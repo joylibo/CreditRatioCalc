@@ -16,3 +16,5 @@ app/config/*.py
 .DS_Store
 
 temp/*
+
+*.zip

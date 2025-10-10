@@ -314,3 +314,33 @@ class ResidentCreditTrendModel(SQLModel, table=True):
     day: date = Field(nullable=False)
     current_score: Optional[float] = Field(default=None)
     reason: Optional[str]
+
+"""
+CREATE ALGORITHM=UNDEFINED DEFINER=`credit`@`%` SQL SECURITY DEFINER VIEW `v_residents_area` AS
+select `a`.`resident_id` AS `resident_id`,`a`.`name` AS `name`,`b`.`area` AS `area`
+from (`residents_basic_info` `a` left join `grid_table` `b` on((`a`.`grid_id` = `b`.`grid_id`)))
+"""
+# 定义模型类 居民区域视图
+class ResidentsAreaViewModel(SQLModel, table=True):
+    __tablename__ = "v_residents_area"
+
+    resident_id: int = Field(primary_key=True)
+    name: str
+    area: Optional[str]
+
+"""
+CREATE ALGORITHM=UNDEFINED DEFINER=`credit`@`%` SQL SECURITY DEFINER VIEW `v_primary_account` AS
+select `p`.`id` AS `id`,`p`.`parent_id` AS `prmary_id`,`p`.`account_id` AS `account_id`,
+`a`.`province` AS `province`,`a`.`city` AS `city`,`a`.`area` AS `area`
+from (`primary_description_t` `p` left join `account_t` `a` on((`p`.`account_id` = `a`.`id`)))
+"""
+# 定义模型类 主指标账户视图
+class PrimaryAccountViewModel(SQLModel, table=True):
+    __tablename__ = "v_primary_account"
+
+    id: int = Field(primary_key=True)
+    prmary_id: int
+    account_id: int
+    province: Optional[str]
+    city: Optional[str]
+    area: Optional[str]

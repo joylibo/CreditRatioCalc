@@ -5,7 +5,10 @@ import torch.nn as nn
 from sqlmodel import Session, select
 from app.database.database import engine
 from datetime import datetime, timedelta
-from app.models.resident_credit_score import ResidentCreditScore, ResidentCreditScorePlus, ResidentCreditTrendModel
+from app.models.resident_credit_score import (
+    ResidentCreditScore, ResidentCreditScorePlus, ResidentCreditTrendModel,
+    ResidentsAreaViewModel, PrimaryAccountViewModel
+)
 from tqdm import tqdm
 import sys
 import os
@@ -133,6 +136,28 @@ def post_future_scores(resident_id, primary_id, account_id, future_scores):
         session.bulk_save_objects(trends)
         session.commit()
 
+def get_resident_id_list():
+    """获取用于预测的 resident_id 列表，每个area取1000个最新的 resident_id"""
+    resident_ids = []
+    with Session(engine) as session:
+        # 步骤1: 从 v_primary_account 中获取所有唯一的 area
+        area_statement = select(PrimaryAccountViewModel.area).distinct().where(PrimaryAccountViewModel.area.isnot(None))
+        areas = session.exec(area_statement).all()
+
+        # 步骤2: 对于每个 area，从 v_residents_area 中获取前1000个 resident_id，按 resident_id DESC 排序
+        for area in areas:
+            resident_statement = (
+                select(ResidentsAreaViewModel.resident_id)
+                .where(ResidentsAreaViewModel.area == area)
+                .order_by(ResidentsAreaViewModel.resident_id.desc())
+                .limit(1000)
+            )
+            residents = session.exec(resident_statement).all()
+            for resident_id in residents:
+                resident_ids.append(resident_id)
+
+    return resident_ids
+
 def get_all_combinations():
     combinations = {}
     with Session(engine) as session:
@@ -160,11 +185,20 @@ if __name__ == '__main__':
     combinations = get_all_combinations()
     print(f"共找到 {len(combinations)} 个居民-primary_id组合")
 
+    # 获取允许预测的 resident_id 列表
+    allowed_resident_ids = set(get_resident_id_list())
+    print(f"允许预测的居民ID数量: {len(allowed_resident_ids)}")
+
     tqdm_func = tqdm if use_tqdm() else lambda x: x  # 如果在终端运行则使用tqdm，否则使用原始迭代器
     processed_count = 0
     skipped_count = 0
+    filtered_count = 0
 
     for (resident_id, primary_id), table_model in tqdm_func(combinations.items()):
+        if resident_id not in allowed_resident_ids:
+            filtered_count += 1
+            continue  # 跳过不在列表中的 resident_id
+
         recent_scores, account_id = get_recent_score_v2(resident_id, table_model, primary_id)
         if len(recent_scores) < 100:
             print(f"数据不足: resident_id={resident_id}, primary_id={primary_id}, account_id={account_id}, 数据点数={len(recent_scores)}")
@@ -175,4 +209,4 @@ if __name__ == '__main__':
             post_future_scores(resident_id, primary_id, account_id, future_scores)
             processed_count += 1
 
-    print(f"预测完成! 成功处理: {processed_count} 组数据, 跳过: {skipped_count} 组数据")
+    print(f"预测完成! 成功处理: {processed_count} 组数据, 数据不足跳过: {skipped_count} 组数据, 不在列表中过滤: {filtered_count} 组数据")

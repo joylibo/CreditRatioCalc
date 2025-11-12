@@ -344,3 +344,44 @@ class PrimaryAccountViewModel(SQLModel, table=True):
     province: Optional[str]
     city: Optional[str]
     area: Optional[str]
+
+"""
+CREATE VIEW unified_resident_behavior_view AS
+SELECT
+    resident_id,
+    record_date,
+    community_service_score,
+    community_service_note,
+    community_elderly_service_duration,
+    community_elderly_service_description,
+    party_member_duration,
+    party_member_description,
+    party_member_reward_punish_type,
+    party_member_reward_punish_reason,
+    party_member_payment_amount,
+    party_member_payment_status,
+    key_resident_description,
+    key_resident_score
+FROM (
+    -- 多个表的UNION ALL查询
+) AS unified_data
+ORDER BY resident_id, record_date;
+"""
+# 定义模型类 统一居民行为视图
+class UnifiedResidentBehaviorViewModel(SQLModel, table=True):
+    __tablename__ = "unified_resident_behavior_view"
+
+    resident_id: int = Field(primary_key=True)
+    record_date: date = Field(primary_key=True)
+    community_service_score: Optional[int] = Field(default=None)
+    community_service_note: Optional[str] = Field(default=None)
+    community_elderly_service_duration: Optional[float] = Field(default=None)
+    community_elderly_service_description: Optional[str] = Field(default=None)
+    party_member_duration: Optional[int] = Field(default=None)
+    party_member_description: Optional[str] = Field(default=None)
+    party_member_reward_punish_type: Optional[str] = Field(default=None)
+    party_member_reward_punish_reason: Optional[str] = Field(default=None)
+    party_member_payment_amount: Optional[float] = Field(default=None)
+    party_member_payment_status: Optional[str] = Field(default=None)
+    key_resident_description: Optional[str] = Field(default=None)
+    key_resident_score: Optional[float] = Field(default=None)

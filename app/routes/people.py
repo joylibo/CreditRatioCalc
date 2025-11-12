@@ -10,7 +10,7 @@ def get_score():
     """返回若干条人群信用分测试数据库的连接
     """
     with Session(engine) as session:
-        # 查询前10行数据
+        # 查询前5行数据
         query = select(ResidentCreditScore).limit(5)
         results = session.exec(query)
         return results.all()

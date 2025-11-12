@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import formpage, mock, similarity, people
+from app.routes import formpage, mock, similarity, people, behavior_analysis
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -12,6 +12,7 @@ app.include_router(formpage.router)
 app.include_router(mock.router)
 app.include_router(similarity.router)
 app.include_router(people.router)
+app.include_router(behavior_analysis.router)
 
 if __name__ == "__main__":
     import uvicorn

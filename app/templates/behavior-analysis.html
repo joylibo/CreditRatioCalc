@@ -207,7 +207,7 @@
                 </div>
             </div>
             <button class="btn" onclick="loadStats()">加载统计数据</button>
-            <button class="btn" onclick="performClustering()" id="cluster-btn">执行聚类分析</button>
+            <button class="btn" onclick="performClustering()" id="cluster-btn">执行态势感知分析</button>
         </div>
 
         <!-- 统计数据显示 -->
@@ -226,7 +226,7 @@
         <div class="analysis-section">
             <h3>聚类分析结果</h3>
             <div id="results-container">
-                <p>请先选择时间范围并点击"执行聚类分析"按钮</p>
+                <p>请先选择时间范围并点击"执行态势感知分析"按钮</p>
             </div>
         </div>
     </div>
@@ -309,7 +309,7 @@
                 document.getElementById('results-container').innerHTML = '<div class="error">聚类分析失败，请检查网络连接或数据</div>';
             } finally {
                 clusterBtn.disabled = false;
-                clusterBtn.textContent = '执行聚类分析';
+                clusterBtn.textContent = '执行态势感知分析';
             }
         }
 
@@ -347,6 +347,10 @@
                             <div class="center-item">
                                 <span>重点人员评分:</span>
                                 <span>${center.key_score}</span>
+                            </div>
+                            <div class="center-item">
+                                <span>代表性居民信用分:</span>
+                                <span>${center.representative_credit_score}</span>
                             </div>
                         </div>
                         <div class="cluster-actions">

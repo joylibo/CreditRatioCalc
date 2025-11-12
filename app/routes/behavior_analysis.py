@@ -149,6 +149,61 @@ async def cluster_analysis(request_data: dict):
         # 计算簇中心（反标准化）
         cluster_centers = scaler.inverse_transform(kmeans.cluster_centers_)
 
+        # 为每个簇找到距离中心最近的代表性居民
+        representative_residents = {}
+        for cluster_id in range(n_clusters):
+            # 获取该簇的所有数据点
+            cluster_mask = clusters == cluster_id
+            cluster_points = scaled_data[cluster_mask]
+            cluster_resident_ids = [resident_ids[i] for i in range(len(resident_ids)) if cluster_mask[i]]
+
+            if len(cluster_points) > 0:
+                # 计算每个点到簇中心的距离
+                cluster_center = kmeans.cluster_centers_[cluster_id]
+                distances = np.linalg.norm(cluster_points - cluster_center, axis=1)
+
+                # 找到距离最近的点
+                closest_idx = np.argmin(distances)
+                representative_residents[f"簇{cluster_id+1}"] = cluster_resident_ids[closest_idx]
+
+        # 查询代表性居民的信用分
+        cluster_credit_scores = {}
+        if representative_residents:
+            rep_resident_ids = list(representative_residents.values())
+            rep_ids_str = ','.join(map(str, rep_resident_ids))
+
+            # 简化查询：直接查询每个居民的最新信用分
+            credit_query = f"""
+            SELECT resident_id, COALESCE(score, 0) as credit_score
+            FROM (
+                SELECT resident_id, score,
+                       ROW_NUMBER() OVER (PARTITION BY resident_id ORDER BY day DESC) as rn
+                FROM resident_credit_score_t
+                WHERE resident_id IN ({rep_ids_str})
+                UNION ALL
+                SELECT resident_id, score,
+                       ROW_NUMBER() OVER (PARTITION BY resident_id ORDER BY day DESC) as rn
+                FROM resident_credit_score
+                WHERE resident_id IN ({rep_ids_str})
+            ) combined
+            WHERE rn = 1
+            """
+
+            try:
+                with Session(engine) as session:
+                    credit_results = session.exec(text(credit_query)).all()
+
+                # 将结果映射到簇
+                credit_map = {row[0]: float(row[1]) if row[1] else 0.0 for row in credit_results}
+
+                for cluster_name, rep_id in representative_residents.items():
+                    cluster_credit_scores[cluster_name] = credit_map.get(rep_id, 0.0)
+
+            except Exception as e:
+                # 如果查询失败，给所有簇设置默认信用分0
+                for cluster_name in representative_residents.keys():
+                    cluster_credit_scores[cluster_name] = 0.0
+
         # 保存聚类结果到全局变量
         latest_clustering_result = {
             "start_date": start_date,
@@ -156,7 +211,9 @@ async def cluster_analysis(request_data: dict):
             "n_clusters": n_clusters,
             "resident_cluster_map": resident_cluster_map,
             "cluster_counts": cluster_counts,
-            "cluster_details": cluster_details
+            "cluster_details": cluster_details,
+            "representative_residents": representative_residents,
+            "cluster_credit_scores": cluster_credit_scores
         }
 
         return {
@@ -171,10 +228,12 @@ async def cluster_analysis(request_data: dict):
                     "key_score": round(cluster_centers[i][4], 2),
                     "reward_punish_score": round(cluster_centers[i][5], 2),
                     "reason_length": round(cluster_centers[i][6], 2),
-                    "description_length": round(cluster_centers[i][7], 2)
+                    "description_length": round(cluster_centers[i][7], 2),
+                    "representative_credit_score": cluster_credit_scores.get(f"簇{i+1}", 0.0)
                 }
                 for i in range(n_clusters)
             },
+            "representative_residents": representative_residents,
             "total_residents": len(resident_ids),
             "n_clusters": n_clusters
         }
